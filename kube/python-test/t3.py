@@ -9,6 +9,13 @@ from statsmodels.tsa.api import ExponentialSmoothing
 from statsmodels.tsa.holtwinters import SimpleExpSmoothing
 from sklearn.metrics import mean_squared_error
 import math
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-a", "--alpha", help="Noise alpha")
+
+args = parser.parse_args()
+
 import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 warnings.simplefilter('ignore', ConvergenceWarning)
@@ -199,7 +206,7 @@ def main():
     sample = 7*per
     x = np.arange(sample)
     series = A*np.sin(B*x)+D
-    alpha = 0.7
+    alpha = float(args.alpha)
     series = series * alpha
     np.random.seed(0)
     noise = np.random.normal(0,100,len(series))*(1-alpha)
@@ -211,7 +218,7 @@ def main():
     # series = [int(i) for i in series]
     add = np.arange(len(series))
     add = [x*0.2 for x in add]
-    series = [sum(x) for x in zip(add, series)]
+    #series = [sum(x) for x in zip(add, series)]
     series = [0 if i < 0 else i for i in series]
 
     test_last = s_len*2
@@ -254,13 +261,15 @@ def main():
         # print(series_part[-n:][-1:])
 
         #model = ExponentialSmoothing(series_part[-n:], trend="add", damped=False, seasonal=None)
-        model = ExponentialSmoothing(series_part[-n:], trend="add", damped=False, seasonal="add", seasonal_periods=s_len)
+        model = ExponentialSmoothing(series_part[-n:], trend="add", seasonal="add", seasonal_periods=s_len)
         
 
         model_fit = model.fit()
         x = model_fit.predict(start=n-params["window_past"],end=n+params["window_future"])
+        
+        if i % s_len == 0:
 
-       
+            print(model_fit.params_formatted)
         p = np.percentile(x, params["HW_percentile"])
 
         if p < 0:
@@ -379,7 +388,7 @@ def main():
     txt= ("Fixed parameters \n Future window size: " + str(params["window_future"]) + ", Past window size: " + str(params["window_past"]) + ", HW percentile: " 
     + str(params["HW_percentile"])+ ", Season length: " + str(params["season_len"])+ ", History length: " + str(params["history_len"])+ ", Rescale buffer: " 
     + str(params["rescale_buffer"])+ ", Upscale count: " + str(params["scaleup_count"])+ ", Downscale count: " + str(params["scaledown_count"]))
-    fig.text(0.5, 0.01, txt, wrap=True, horizontalalignment='center', size=20)
+    #fig.text(0.5, 0.01, txt, wrap=True, horizontalalignment='center', size=20)
     ax1.tick_params(axis="x", labelsize=20) 
     ax1.tick_params(axis="y", labelsize=20) 
     ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
@@ -396,14 +405,15 @@ def main():
 
 
     hw_slack = np.subtract(yrequest,series)
-    hw_slack = [0 if i < 0 else i for i in hw_slack]
+    #hw_slack = [0 if i < 0 else i for i in hw_slack]
     vpa_slack = np.subtract(vpa,series)
-    vpa_slack = [0 if i < 0 else i for i in vpa_slack]
+    #vpa_slack = [0 if i < 0 else i for i in vpa_slack]
 
     ax2.plot(series_X, hw_slack, 'ro-', linewidth=4, label='HW slack')
     ax2.plot(series_X, vpa_slack, 'yo-', linewidth=4, label='VPA slack')
 
-    t2 = ("CPU slack, alpha: " + str(alpha) + "\n VPA avg slack: " + str(int(avg_slack_vpa)) + ", HW avg slack: "+ str(int(avg_slack)))
+    t2 = "CPU slack, alpha: " + str(alpha)
+    #t2 = ("CPU slack, alpha: " + str(alpha) + "\n VPA avg slack: " + str(int(avg_slack_vpa)) + ", HW avg slack: "+ str(int(avg_slack)))
     fig2.suptitle(t2, fontsize=25)
     ax2.tick_params(axis="x", labelsize=20) 
     ax2.tick_params(axis="y", labelsize=20) 
@@ -411,17 +421,22 @@ def main():
     ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
     ax2.set_xlabel('Observations', fontsize=20)
     ax2.set_ylabel('CPU (millicores)', fontsize=20)
-    ax2.set_ylim(bottom=-20)
+    ax2.set_ylim(bottom=-100)
     ax2.set_ylim(top=505)
 
+    #plt.show()
+    #plt.savefig('fig1.png', figsize=(19.2,10.8), dpi=100)
+
+   # manager = plt.get_current_fig_manager()
+    #manager.resize(*manager.window.maxsize())
+    ax1.set_xlim(left=s_len*2)
+    ax2.set_xlim(left=s_len*2)
+    fig.set_size_inches(20,12)
+    fig2.set_size_inches(20,12)
     plt.show()
 
-
-    # manager = plt.get_current_fig_manager()
-    # manager.resize(*manager.window.maxsize())
-    # plt.show()
-    # fig.savefig("test.png",bbox_inches='tight')
-    
+    fig.savefig("./results/sc"+str(int(alpha*10))+".png",bbox_inches='tight')
+    fig2.savefig("./results/sl"+str(int(alpha*10))+".png", bbox_inches="tight")  
     
     
     
