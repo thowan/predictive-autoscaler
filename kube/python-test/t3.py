@@ -209,7 +209,7 @@ def main():
     alpha = float(args.alpha)
     series = series * alpha
     np.random.seed(0)
-    noise = np.random.normal(0,300,len(series))*(1-alpha)
+    noise = np.random.normal(0,100,len(series))*(1-alpha)
     series = [sum(x) for x in zip(noise, series)]
     series = [int(i) for i in series]
 
@@ -217,8 +217,8 @@ def main():
     # series = [sum(x) for x in zip(noise, series)]
     # series = [int(i) for i in series]
     add = np.arange(len(series))
-    add = [x*0.2 for x in add]
-    #series = [sum(x) for x in zip(add, series)]
+    add = [x*0.3 for x in add]
+    series = [sum(x) for x in zip(add, series)]
     series = [0 if i < 0 else i for i in series]
 
     test_last = s_len*2
