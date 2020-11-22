@@ -12,8 +12,8 @@ import math
 import argparse
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-a", "--alpha", help="Noise alpha")
-
+parser.add_argument("-a", "--alpha", help="Noise alpha", default=1)
+parser.add_argument("-s", "--std", help="Standard deviation noise", default=100)
 args = parser.parse_args()
 
 import warnings
@@ -209,7 +209,7 @@ def main():
     alpha = float(args.alpha)
     series = series * alpha
     np.random.seed(0)
-    noise = np.random.normal(0,100,len(series))*(1-alpha)
+    noise = np.random.normal(0,int(args.std),len(series))*(1-alpha)
     series = [sum(x) for x in zip(noise, series)]
     series = [int(i) for i in series]
 
