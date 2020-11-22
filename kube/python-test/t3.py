@@ -199,7 +199,7 @@ def main():
 
 
     # Sine wave
-    A = 150
+    A = 250
     per = s_len
     B = 2*np.pi/per
     D = 200
@@ -218,7 +218,7 @@ def main():
     # series = [int(i) for i in series]
     add = np.arange(len(series))
     add = [x*0.3 for x in add]
-    series = [sum(x) for x in zip(add, series)]
+    #series = [sum(x) for x in zip(add, series)]
     series = [0 if i < 0 else i for i in series]
 
     test_last = s_len*2
