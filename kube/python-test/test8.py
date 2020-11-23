@@ -309,7 +309,7 @@ def animate2(i):
         ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
         ax2.set_xlabel('Time (s)', fontsize=20)
         ax2.set_ylabel('CPU (millicores)', fontsize=20)
-        ax2.set_ylim(bottom=-20)
+        ax2.set_ylim(bottom=-100)
         ax2.set_ylim(top=505)
     
 def animate(i):
@@ -522,6 +522,11 @@ def main():
     # ani = animation.FuncAnimation(fig, animate, interval=15000)
     # ani1 = animation.FuncAnimation(fig2, animate2, interval=1500)
     #plt.show()
+
+    ax1.set_xlim(left=s_len*2)
+    ax2.set_xlim(left=s_len*2)
+    fig.set_size_inches(20,12)
+    fig2.set_size_inches(20,12)
 
     starttime = time.time()
     plt.show()
