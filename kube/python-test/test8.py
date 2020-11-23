@@ -540,6 +540,7 @@ def main():
         
         if data == 'y':
             print("Saving fig")
+            plt.show()
             plt.draw()
             fig.savefig("./resultslive/sc"+".png",bbox_inches='tight')
             fig2.savefig("./resultslive/sl"+".png", bbox_inches="tight")  
