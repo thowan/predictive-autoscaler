@@ -298,8 +298,8 @@ def animate2(i):
         ax2.plot(xt[skip:], vpa_slack, 'yo-', linewidth=4, label='VPA slack')
 
         if len(xt) > 0:
-            ax2.text(xt[-1], hw_slack[-1], str(hw_slack[-1]), fontdict=None, withdash=False)
-            ax2.text(xt[-1], vpa_slack[-1], str(vpa_slack[-1]), fontdict=None, withdash=False)
+            ax2.text(xt[-1], hw_slack[-1], str(hw_slack[-1]), fontdict=None)
+            ax2.text(xt[-1], vpa_slack[-1], str(vpa_slack[-1]), fontdict=None)
 
         fig2.suptitle('Slack', fontsize=25)
 
@@ -347,9 +347,9 @@ def animate(i):
             ax1.plot(xs, ylower, 'k--', linewidth=4)
             
             ax1.plot(xs, ytarget, 'm--', linewidth=4, label='VPA target')
-            ax1.text(xs[-1], ytarget[-1], str(ytarget[-1]), fontdict=None, withdash=False)
-            ax1.text(xs[-1], ylower[-1], int(ylower[-1]), fontdict=None, withdash=False)
-            ax1.text(xs[-1], yupper[-1], int(yupper[-1]), fontdict=None, withdash=False)
+            ax1.text(xs[-1], ytarget[-1], str(ytarget[-1]), fontdict=None)
+            ax1.text(xs[-1], ylower[-1], int(ylower[-1]), fontdict=None)
+            ax1.text(xs[-1], yupper[-1], int(yupper[-1]), fontdict=None)
         else:
             ytarget.append(np.nan)
             ylower.append(np.nan)
@@ -406,7 +406,7 @@ def animate(i):
             xholt = [i * 15 for i in xholt]
 
 
-            ax1.text(xholt[-1], yholt[-1], int(yholt[-1]), fontdict=None, withdash=False)
+            ax1.text(xholt[-1], yholt[-1], int(yholt[-1]), fontdict=None)
             ax1.plot(xholt, yholt, 'bo-', linewidth=4, label='Holt-winters')
 
 
@@ -460,8 +460,8 @@ def animate(i):
         
 
         # Plot last value text
-        ax1.text(xt[-1], yusage[-1], int(yusage[-1]), fontdict=None, withdash=False)
-        ax1.text(xt[-1], yrequest[-1], int(yrequest[-1]), fontdict=None, withdash=False)
+        ax1.text(xt[-1], yusage[-1], int(yusage[-1]), fontdict=None)
+        ax1.text(xt[-1], yrequest[-1], int(yrequest[-1]), fontdict=None)
         
 
         # Plot lines 
@@ -534,8 +534,10 @@ def main():
         animate2(1)
         
         if data == 'y':
-
+            print("Saving fig")
             plt.draw()
+            fig.savefig("./resultslive/sc"+".png",bbox_inches='tight')
+            fig2.savefig("./resultslive/sl"+".png", bbox_inches="tight")  
             plt.pause(0.001)
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
