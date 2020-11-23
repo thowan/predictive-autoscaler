@@ -343,8 +343,8 @@ def animate(i):
             yupper.append(upperBound)
             xs = range(len(ytarget))
             xs = [i * 15 for i in xs]
-            ax1.plot(xs, yupper, 'k--', linewidth=4, label='VPA bounds')
-            ax1.plot(xs, ylower, 'k--', linewidth=4)
+            #ax1.plot(xs, yupper, 'k--', linewidth=4, label='VPA bounds')
+            #ax1.plot(xs, ylower, 'k--', linewidth=4)
             
             ax1.plot(xs, ytarget, 'm--', linewidth=4, label='VPA target')
             ax1.text(xs[-1], ytarget[-1], str(ytarget[-1]), fontdict=None)
