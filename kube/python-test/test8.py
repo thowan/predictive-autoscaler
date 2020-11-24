@@ -126,10 +126,12 @@ def get_cpu_metrics_server(api_client):
                     container_index = c
                     break
             
-
+            
             try: 
                 ret = a["items"][i]["containers"][container_index]["usage"]["cpu"]
+            
             except IndexError:
+                time.sleep(1.0)
                 return get_cpu_metrics_server(api_client)
             return ret
 
