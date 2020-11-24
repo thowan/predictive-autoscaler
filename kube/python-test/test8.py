@@ -190,10 +190,10 @@ def get_recommendations(target, lowerBound, upperBound):
     return target, lowerBound, upperBound
 
 
-s_len = int(68)
+s_len = int(96)
 #PARAMETERS
 params = {
-    "window_future": 7, #HW
+    "window_future": 5, #HW
     "window_past": 1, #HW
     "HW_percentile": 95, #HW
     "season_len": s_len, #HW
