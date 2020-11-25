@@ -192,10 +192,10 @@ def get_recommendations(target, lowerBound, upperBound):
     return target, lowerBound, upperBound
 
 
-s_len = int(96)
+s_len = int(96) + 40
 #PARAMETERS
 params = {
-    "window_future": 5, #HW
+    "window_future": 9, #HW
     "window_past": 1, #HW
     "HW_percentile": 95, #HW
     "season_len": s_len, #HW
@@ -204,7 +204,7 @@ params = {
     "scaleup_count": 7, #FIX
     "scaledown_count": 7, #FIX
     "scale_down_buffer": 100,
-    "scale_up_buffer":50,
+    "scale_up_buffer":100,
     "scale_up_stable":1,
     "scale_down_stable":1,
     "stable_range": 25
@@ -394,7 +394,7 @@ def animate(i):
             
             n = int(current_step - history_start)
             print("n: ",n)
-            model = ExponentialSmoothing(yusage[-n:], trend="add", damped=False, seasonal="add",seasonal_periods=season_length)
+            model = ExponentialSmoothing(yusage[-n:], trend="add", seasonal="add",seasonal_periods=season_length)
             model_fit = model.fit()
 
 
@@ -540,12 +540,12 @@ def main():
         animate(1)
         animate2(1)
         
-        if data == 'y':
+        if data == 'y' or len(yholt)%500 == 0:
             print("Saving fig")
             plt.show()
             plt.draw()
-            fig.savefig("./resultslive/sc"+".png",bbox_inches='tight')
-            fig2.savefig("./resultslive/sl"+".png", bbox_inches="tight")  
+            fig.savefig("./resultslive/sc"+str(len(yholt))+".png",bbox_inches='tight')
+            fig2.savefig("./resultslive/sl"+str(len(yholt))+".png", bbox_inches="tight")  
             plt.pause(0.001)
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
