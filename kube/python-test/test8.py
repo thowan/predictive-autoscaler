@@ -12,7 +12,9 @@ from statsmodels.tsa.api import ExponentialSmoothing
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 import math
 import warnings
+
 warnings.simplefilter('ignore', ConvergenceWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Import seaborn
 import seaborn as sns
