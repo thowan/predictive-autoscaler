@@ -1,6 +1,9 @@
 from kubernetes import client, config, watch
 from kubernetes.client.rest import ApiException
 
+
+from datetime import datetime
+
 from pprint import pprint
 import time
 import json
@@ -78,7 +81,7 @@ def get_cpu_vpa(api_client):
 
 def patch(client, requests, limits):
     # Patch'
-    limits = requests
+    limits = requests*2
     print(requests)
     v1 = client.AppsV1Api()
 
@@ -114,7 +117,7 @@ def get_cpu_metrics_server(api_client):
     response = ret_metrics[0].data.decode('utf-8')
     a = json.loads(response)
     pod_name = get_running_pod(client, "nginx-deployment", "default")
-
+    ret = 0
     for i in range(len(a["items"])):
         if pod_name in a["items"][i]["metadata"]["name"]:
             #print(a["items"][i]["containers"][0]["usage"]["cpu"])
@@ -131,8 +134,10 @@ def get_cpu_metrics_server(api_client):
             
             try: 
                 ret = a["items"][i]["containers"][container_index]["usage"]["cpu"]
-            
+                if ret is None:
+                    ret = 0
             except IndexError:
+                print("HERE----------")
                 time.sleep(1.0)
                 return get_cpu_metrics_server(api_client)
             return ret
@@ -194,17 +199,17 @@ def get_recommendations(target, lowerBound, upperBound):
     return target, lowerBound, upperBound
 
 
-s_len = int(96) + 40
+s_len = 34
 #PARAMETERS
 params = {
-    "window_future": 9, #HW
+    "window_future": 3, #HW
     "window_past": 1, #HW
     "HW_percentile": 95, #HW
     "season_len": s_len, #HW
     "history_len": 3*s_len, #HW
-    "rescale_buffer": 150, # FIX
-    "scaleup_count": 7, #FIX
-    "scaledown_count": 7, #FIX
+    "rescale_buffer": 100, # FIX
+    "scaleup_count": 2, #FIX
+    "scaledown_count": 2, #FIX
     "scale_down_buffer": 100,
     "scale_up_buffer":100,
     "scale_up_stable":1,
@@ -311,7 +316,7 @@ def animate2(i):
         ax2.tick_params(axis="y", labelsize=20) 
         fig2.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
         ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
-        ax2.set_xlabel('Time (s)', fontsize=20)
+        ax2.set_xlabel('Observations', fontsize=20)
         ax2.set_ylabel('CPU (millicores)', fontsize=20)
         ax2.set_ylim(bottom=-100)
         ax2.set_ylim(top=505)
@@ -331,7 +336,11 @@ def animate(i):
     cpu_metrics_server = get_cpu_metrics_server(api_client)
 
     cpu_requests = get_cpu_requests(client)
-    
+    print(cpu_metrics_server)
+    if cpu_metrics_server is None:
+        print("IS NONE")
+        cpu_metrics_server = 0
+    print(cpu_requests)
     if cpu_metrics_server is not None and cpu_requests is not None:
 
         ax1.clear()
@@ -346,14 +355,14 @@ def animate(i):
             ylower.append(lowerBound)
             yupper.append(upperBound)
             xs = range(len(ytarget))
-            xs = [i * 15 for i in xs]
+            #xs = [i * 15 for i in xs]
             #ax1.plot(xs, yupper, 'k--', linewidth=4, label='VPA bounds')
             #ax1.plot(xs, ylower, 'k--', linewidth=4)
             
             ax1.plot(xs, ytarget, 'm--', linewidth=4, label='VPA target')
             ax1.text(xs[-1], ytarget[-1], str(ytarget[-1]), fontdict=None)
-            ax1.text(xs[-1], ylower[-1], int(ylower[-1]), fontdict=None)
-            ax1.text(xs[-1], yupper[-1], int(yupper[-1]), fontdict=None)
+            #ax1.text(xs[-1], ylower[-1], int(ylower[-1]), fontdict=None)
+            #ax1.text(xs[-1], yupper[-1], int(yupper[-1]), fontdict=None)
         else:
             ytarget.append(np.nan)
             ylower.append(np.nan)
@@ -373,7 +382,7 @@ def animate(i):
 
         # 15 seconds per new point in
         xt = range(len(yusage))
-        xt = [i * 15 for i in xt]
+        #xt = [i * 15 for i in xt]
 
 
         # Holt-winter prediction
@@ -407,7 +416,7 @@ def animate(i):
             yholt.append(p)
             # yholt.append(model_fit.forecast())
             xholt = range(len(yholt))
-            xholt = [i * 15 for i in xholt]
+            #xholt = [i * 15 for i in xholt]
 
 
             ax1.text(xholt[-1], yholt[-1], int(yholt[-1]), fontdict=None)
@@ -478,7 +487,7 @@ def animate(i):
         txt= ("Fixed parameters \n Future window size: " + str(params["window_future"]) + ", Past window size: " + str(params["window_past"]) + ", HW percentile: " 
         + str(params["HW_percentile"])+ ", Season length: " + str(params["season_len"])+ ", History length: " + str(params["history_len"])+ ", Rescale buffer: " 
         + str(params["rescale_buffer"])+ ", Upscale count: " + str(params["scaleup_count"])+ ", Downscale count: " + str(params["scaledown_count"]))
-        fig.text(0.5, 0.01, txt, wrap=True, horizontalalignment='center', size=20)
+        #fig.text(0.5, 0.01, txt, wrap=True, horizontalalignment='center', size=20)
 
         
         ax1.tick_params(axis="x", labelsize=20) 
@@ -488,6 +497,9 @@ def animate(i):
         ax1.set_xlabel('Time (s)', fontsize=20)
         ax1.set_ylabel('CPU (millicores)', fontsize=20)
         
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        #print("Time: ", current_time)
 
 # spawn a new thread to wait for input 
 def get_input():
@@ -497,8 +509,8 @@ def get_input():
 
 import threading
 
-def startTimer1():
-    threading.Timer(15, startTimer).start()
+def startTimer():
+    threading.Timer(60, startTimer).start()
     animate(1)
     animate2(1)
     
@@ -546,7 +558,7 @@ def main():
     while True:
     
         
-        if data == 'y' or len(yholt)%500 == 0:
+        if data == 'y' or len(yholt)%100 == 0:
             print("Saving fig")
             plt.show()
             plt.draw()
