@@ -89,8 +89,8 @@ def triple_exponential_smoothing(series, slen, alpha, beta, gamma, n_preds):
 # #scale stable range: define what range is stable
 # stable_range = [25, 50, 75, 100]
 
-scale_d_b = np.linspace(25, 200,dtype = int, num=8)
-scale_u_b = np.linspace(25, 200,dtype = int, num=8)
+scale_d_b = np.linspace(50, 300,dtype = int, num=8)
+scale_u_b = np.linspace(50, 300,dtype = int, num=8)
 #scale stable: only scale when prediction has been stable for x steps
 scale_u_s = np.linspace(3, 7,dtype = int, num=4)
 scale_d_s = np.linspace(3, 7,dtype = int, num=4)
@@ -161,16 +161,16 @@ def get_best_params(series):
     print(best_params)
     return best_params
 
-s_len = 144
+s_len = 14
 params = {
-    "window_future": 7, #HW
+    "window_future": 2, #HW
     "window_past": 1, #HW
     "HW_percentile": 95, #HW
     "season_len": s_len, #HW
     "history_len": 3*s_len, #HW
-    "rescale_buffer": 50, # FIX
-    "scaleup_count": 5, #FIX
-    "scaledown_count": 5, #FIX
+    "rescale_buffer": 100, # FIX
+    "scaleup_count": 15, #FIX
+    "scaledown_count": 15, #FIX
     "scale_down_buffer": 100,
     "scale_up_buffer":50,
     "scale_up_stable":1,
@@ -200,16 +200,16 @@ def main():
 
 
     # Sine wave
-    A = 250
+    A = 300
     per = s_len
     B = 2*np.pi/per
-    D = 200
-    sample = 7*per
+    D = 250
+    sample = 4*per
     x = np.arange(sample)
     series = A*np.sin(B*x)+D
     alpha = float(args.alpha)
     series = series * alpha
-    np.random.seed(0)
+    np.random.seed(3)
     noise = np.random.normal(0,int(args.std),len(series))*(1-alpha)
     series = [sum(x) for x in zip(noise, series)]
     series = [int(i) for i in series]
@@ -217,14 +217,19 @@ def main():
     # noise = np.random.normal(0,20,len(series))
     # series = [sum(x) for x in zip(noise, series)]
     # series = [int(i) for i in series]
-    add = np.arange(len(series))
-    add = [x*0.3 for x in add]
-    #series = [sum(x) for x in zip(add, series)]
+    #add = np.arange(len(series))
+    #add = [x*0.3 for x in add]
+    # add = len(series) * [0]
+    # add[int(len(add)/1.6)] = 700
+    # add[int(len(add)/1.6)+1] = 740
+    # add[int(len(add)/1.6)+2] = 760
+    # add[int(len(add)/1.6)+3] = 710
+    # series = [sum(x) for x in zip(add, series)]
     series = [0 if i < 0 else i for i in series]
 
     test_last = s_len*2
 
-    CPU_request = 500
+    CPU_request = 800
     yrequest = [CPU_request] * test_last
     yhat = []
     Y = []
@@ -236,13 +241,11 @@ def main():
     scaleup = 0
     downscale = 0
     best = False
+    model = None
 
     rescale_counter = 0
     while i <= len(series):
-        # if i < params["history_len"]:
-        #     n = i
-        # else:
-        #     n = params["history_len"]
+
         # What we have seen up until now
         series_part = series[:i]
         season = math.ceil((i+1)/s_len)
@@ -252,25 +255,25 @@ def main():
         history_start = (history_start_season-1) * s_len 
         n = int(i - history_start)
         
-        # print("season: ",season)
-        # print("history season start: ",history_start_season)
-        # print("history_start: ",history_start)
-        #print("n: ",n)
-        # print(series_part[-n:])
-        # print(len(series_part[-n:]))
-        # print(series_part[-n:][0])
-        # print(series_part[-n:][-1:])
-
         #model = ExponentialSmoothing(series_part[-n:], trend="add", damped=False, seasonal=None)
-        model = ExponentialSmoothing(series_part[-n:], trend="add", seasonal="add", seasonal_periods=s_len)
-        
+        #if update model
+        if i % 20 == 0 or model is None:
+            model = ExponentialSmoothing(series_part[-n:], trend="add", seasonal="add", seasonal_periods=s_len)
+            model_fit = model.fit()
+            
 
-        model_fit = model.fit()
+        
         x = model_fit.predict(start=n-params["window_past"],end=n+params["window_future"])
-        
-        if i % s_len == 0:
 
-            print(model_fit.params_formatted)
+            
+        
+
+        
+        
+        
+        # if i % s_len == 0:
+
+        #print(model_fit.params_formatted)
         p = np.percentile(x, params["HW_percentile"])
 
         if p < 0:
@@ -352,8 +355,8 @@ def main():
     avg_slack = np.average(np.subtract(reqs,usages))
     avg_slack_vpa = np.average(np.subtract(vpa[skip*3:],usages))
     
-    print(avg_slack)
-    print(avg_slack_vpa)
+    print("HW:", avg_slack)
+    print("VPA:", avg_slack_vpa)
 
     print("---% TIME ABOVE REQUESTED---")
     count = 0
