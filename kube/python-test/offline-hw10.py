@@ -391,7 +391,7 @@ def main():
     ax2.set_xlim(left=s_len*3)
     fig.set_size_inches(15,8)
     fig2.set_size_inches(15,8)
-    #plt.show()
+    plt.show()
 
     fig.savefig("./results/scale"+str(int(alpha*10))+".png",bbox_inches='tight')
     fig2.savefig("./results/slack"+str(int(alpha*10))+".png", bbox_inches="tight")  
