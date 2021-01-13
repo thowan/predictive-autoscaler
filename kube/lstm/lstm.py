@@ -114,15 +114,20 @@ def main():
     
     # Sine wave
     
-    A = 300
+    A = 700
     per = 144
     B = 2*np.pi/per
     D = 200
-    sample = 5*per
-    alpha, std = 0.8, 300
+    sample = 6*per
+    alpha, std = 0.1, 500
     x = np.arange(sample)
     series = A*np.sin(B*x)+D
     series = series * alpha
+
+    add = np.arange(len(series))
+    add = [x*0.3 for x in add]
+
+    series = [sum(x) for x in zip(add, series)]
     
     noise = np.random.normal(0,int(std),len(series))*(1-alpha)
     series = [sum(x) for x in zip(noise, series)]
@@ -137,13 +142,13 @@ def main():
     print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
     print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
-    start_pred = 250
+    start_pred = 200
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
     print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
     print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
-    start_pred = 350
+    start_pred = 300
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
     print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
@@ -161,7 +166,7 @@ def main():
     print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
     print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
-    start_pred = 544
+    start_pred = 600
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
     print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))

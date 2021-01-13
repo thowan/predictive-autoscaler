@@ -63,20 +63,21 @@ scale_u_b = np.linspace(50, 500,dtype = int, num=50)
 
 
 # split a univariate sequence into samples
-def split_sequence(sequence, n_steps_in, n_steps_out):
-	X, y = list(), list()
-	for i in range(len(sequence)):
-		# find the end of this pattern
-		end_ix = i + n_steps_in
-		out_end_ix = end_ix + n_steps_out
-		# check if we are beyond the sequence
-		if out_end_ix > len(sequence):
-			break
-		# gather input and output parts of the pattern
-		seq_x, seq_y = sequence[i:end_ix], sequence[end_ix:out_end_ix]
-		X.append(seq_x)
-		y.append(seq_y)
-	return np.array(X), np.array(y)
+def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
+    X, y = list(), list()
+
+    for i in range(len(sequence)-ywindow-n_steps_in+1):
+        # find the end of this pattern
+        end_ix = i + n_steps_in
+
+        # gather input and output parts of the pattern
+        # print(sequence[end_ix:end_ix+ywindow])
+        seq_x, seq_y = sequence[i:end_ix], np.percentile(sequence[end_ix:end_ix+ywindow], 90)
+        X.append(seq_x)
+        y.append(seq_y)
+
+    # print(np.array(X), np.array(y))
+    return np.array(X), np.array(y)
 
 def trans_foward(arr):
     global scaler
@@ -88,18 +89,19 @@ def trans_back(arr):
     out_arr = scaler.inverse_transform(arr.flatten().reshape(-1, 1))
     return out_arr.flatten()
 
-def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
+def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow):
     global scaler
-    raw_seq = np.array(raw_seq)
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaler = scaler.fit(raw_seq.reshape(-1, 1))
-    
+    #print("First 10 of raw_seq:", raw_seq[:20])
     dataset = trans_foward(raw_seq)
     # split into samples
-    X, y = split_sequence(dataset, n_steps_in, n_steps_out)
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow)
     # reshape from [samples, timesteps] into [samples, timesteps, features]
     
     X = X.reshape((X.shape[0], X.shape[1], n_features))
+
+    
 
     # define model
 
@@ -113,7 +115,9 @@ def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     # fit model
     model.fit(X, y, epochs=20, verbose=1)
 
-    # history = model.fit(X, y, epochs=60, validation_data=(X_valid, y_valid))
+    # X, X_valid = train_test_split(X, int(len(X)*0.7))
+    # y, y_valid = train_test_split(y, int(len(y)*0.7))
+    # history = model.fit(X, y, epochs=30, validation_data=(X_valid, y_valid))
     # pyplot.plot(history.history['loss'])
     # pyplot.plot(history.history['val_loss'])
     # pyplot.title('model train vs validation loss')
@@ -121,10 +125,12 @@ def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     # pyplot.xlabel('epoch')
     # pyplot.legend(['train', 'validation'], loc='upper right')
     # pyplot.show()
+    
     return model
 
 def lstm_predict(input_data,model,n_steps_in,n_features):
     # demonstrate prediction
+    
     x_input = np.array(trans_foward(input_data))
     x_input = x_input.reshape((1, n_steps_in, n_features))
     yhat = model.predict(x_input, verbose=0)
@@ -173,8 +179,10 @@ def get_best_params(series):
                 i += 1 
             # Weighted MSE where CPU usage is higher than request is weighted x times more
             sub = np.subtract(series,yrequest_temp)
+            
             for v in range(len(sub)):
-                if sub[v] > 0:
+                
+                if sub[v].flatten() > 0:
                     sub[v] = sub[v] * 10
             MSE = np.square(sub).mean() 
             
@@ -197,10 +205,10 @@ params = {
     "season_len": s_len, #HW
     "history_len": 3*s_len, #HW
     "rescale_buffer": 100, # FIX
-    "scaleup_count": 15, #FIX
-    "scaledown_count": 15, #FIX
+    "scaleup_count": 18, #FIX
+    "scaledown_count": 18, #FIX
     "scale_down_buffer": 100,
-    "scale_up_buffer":50
+    "scale_up_buffer":100
 }
 
 avgslack_list_vpa = []
@@ -233,12 +241,14 @@ def main():
     series = A*np.sin(B*x)+D
     #alpha = float(args.alpha)
     series = series * alpha
-    np.random.seed(3)
+
+
+    # np.random.seed(3)
     noise = np.random.normal(0,int(std),len(series))*(1-alpha)
     series = [sum(x) for x in zip(noise, series)]
     series = [int(i) for i in series]
 
-    series = [1 if i <= 0 else i for i in series]
+    series = np.array([1 if i <= 0 else i for i in series]).flatten()
 
     test_last = s_len*2
 
@@ -249,14 +259,14 @@ def main():
 
     i = test_last 
 
-    scaleup = 0
-    downscale = 0
+    scaleup = np.inf
+    downscale = np.inf
     best = False
     model = None
 
     rescale_counter = 0
 
-    steps_in, steps_out, n_features = 77, 24, 1
+    steps_in, steps_out, n_features, ywindow = 77, 1, 1, 24
     while i <= len(series):
 
         # What we have seen up until now
@@ -274,42 +284,43 @@ def main():
         raw_seq = series_part
         if i % 144 == 0 or model is None:
             
-            model = create_lstm(steps_in, steps_out,n_features, raw_seq)
+            model = create_lstm(steps_in, steps_out,n_features, raw_seq, ywindow)
 
 
         input_data = np.array(raw_seq[-steps_in:])
         # print(input_data)
-        x = lstm_predict(input_data, model,steps_in, n_features)
+        p = lstm_predict(input_data, model,steps_in, n_features)[0]
 
         # if i % s_len == 0:
 
         #print(model_fit.params_formatted)
-        p = np.percentile(x, params["HW_percentile"])
+        #p = np.percentile(x, params["HW_percentile"])
 
         if p < 0:
             p = 0
         Y.append(p)
 
-        # # If HW has been running for 1 season
-        if len(Y) >= s_len and len(Y) % s_len == 0:
+        # # # # If HW has been running for 1 season
+        # if len(Y) >= s_len and len(Y) % s_len == 0:
 
-            a = Y[-params["history_len"]:]
+        #     a = Y[-params["history_len"]:]
 
-            a = [x for x in a if not math.isnan(x)]
+        #     a = [x for x in a if not math.isnan(x)]
             
-            params = get_best_params(a)
-            best = True
+        #     params = get_best_params(a)
+        #     best = True
 
-        if best:
-            CPU_request_temp = CPU_request - params["rescale_buffer"]
-            if CPU_request_temp - p > params["scale_down_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+        # if best:
+        CPU_request_temp = CPU_request - params["rescale_buffer"]
+        if scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+            if CPU_request_temp - p > params["scale_down_buffer"]:
             
                 #print("CPU request wasted")
                 CPU_request = p + params["rescale_buffer"]
                 rescale_counter += 1
                 downscale = 0
-            elif p - CPU_request_temp > params["scale_up_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
-               
+            elif p - CPU_request_temp > params["scale_up_buffer"]: 
+                
                 #print("CPU request too low")
                 CPU_request = p + params["rescale_buffer"]
                 rescale_counter += 1
@@ -442,8 +453,8 @@ def main():
 
    # manager = plt.get_current_fig_manager()
     #manager.resize(*manager.window.maxsize())
-    ax1.set_xlim(left=s_len*3)
-    ax2.set_xlim(left=s_len*3)
+    ax1.set_xlim(left=s_len*2)
+    ax2.set_xlim(left=s_len*2)
     fig.set_size_inches(15,8)
     fig2.set_size_inches(15,8)
     plt.show()
