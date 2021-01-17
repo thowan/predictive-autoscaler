@@ -50,20 +50,8 @@ ax2 = fig2.add_subplot(1,1,1)
 fig.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
 
 
-# scale_d_b = [100,125,150,175,200]
-# scale_u_b = [25,50, 75, 100,150,200]
-# #scale stable: only scale when prediction has been stable for x steps
-# scale_u_s = [3,4,5,6]
-# scale_d_s = [3,4,5,6]
-# #scale stable range: define what range is stable
-# stable_range = [25, 50, 75, 100]
-
-scale_d_b = np.linspace(50, 500,dtype = int, num=50)
-scale_u_b = np.linspace(50, 500,dtype = int, num=50)
-
-
 # split a univariate sequence into samples
-def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
+def split_sequence(sequence, n_steps_in, n_steps_out, ywindow, perc):
     X, y = list(), list()
 
     for i in range(len(sequence)-ywindow-n_steps_in+1):
@@ -72,7 +60,7 @@ def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
 
         # gather input and output parts of the pattern
         # print(sequence[end_ix:end_ix+ywindow])
-        seq_x, seq_y = sequence[i:end_ix], np.percentile(sequence[end_ix:end_ix+ywindow], 90)
+        seq_x, seq_y = sequence[i:end_ix], [np.percentile(sequence[end_ix:end_ix+ywindow], perc), np.percentile(sequence[end_ix:end_ix+ywindow], 60), np.percentile(sequence[end_ix:end_ix+ywindow], 100)]
         X.append(seq_x)
         y.append(seq_y)
 
@@ -89,14 +77,31 @@ def trans_back(arr):
     out_arr = scaler.inverse_transform(arr.flatten().reshape(-1, 1))
     return out_arr.flatten()
 
-def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow):
+def update_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow, model, perc):
+    global scaler
+    raw_seq = np.array(raw_seq)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = scaler.fit(raw_seq.reshape(-1, 1))
+    
+    dataset = trans_foward(raw_seq)
+    # split into samples
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow, perc)
+    # reshape from [samples, timesteps] into [samples, timesteps, features]
+    
+    X = X.reshape((X.shape[0], X.shape[1], n_features))
+    
+    model.fit(X[-144:,:,:], y[-144:], epochs=15, verbose=1)
+
+    return model   
+
+def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow, perc):
     global scaler
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaler = scaler.fit(raw_seq.reshape(-1, 1))
     #print("First 10 of raw_seq:", raw_seq[:20])
     dataset = trans_foward(raw_seq)
     # split into samples
-    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow)
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow, perc)
     # reshape from [samples, timesteps] into [samples, timesteps, features]
     
     X = X.reshape((X.shape[0], X.shape[1], n_features))
@@ -139,69 +144,32 @@ def lstm_predict(input_data,model,n_steps_in,n_features):
 def train_test_split(data, n_test):
 	return data[:n_test+1], data[-n_test:]
 
-def get_best_params(series):
-    global params
-    global scale_d_b, scale_u_b
-    error = np.inf
-    best_params = None
-    for a in scale_d_b:
-        for b in scale_u_b:
 
-            params["scale_down_buffer"] = a
-            params["scale_up_buffer"] = b
+def create_sin_noise(A, B, D, per, total_len):
+    # Sine wave
+    
+    A = 300
+    per = s_len
+    B = 2*np.pi/per
+    D = 200
+    total_len = 6*per
+    x = np.arange(total_len)
+    series = A*np.sin(B*x)+D
+    #alpha = float(args.alpha)
+    series = series * alpha
 
-            rescale_counter = 0
-            scaleup = 0
-            downscale = 0
-            CPU_request = 500
-            i = 0
-            yrequest_temp = []
-            
-            while i < len(series):
-                if i > 10:
+    noise = np.random.normal(0,int(std),len(series))*(1-alpha)
+    series = [sum(x) for x in zip(noise, series)]
+    series = [int(i) for i in series]
 
-                    p = series[i]
-                    if CPU_request - p > params["scale_down_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
-                        #print("CPU request wasted")
-                        CPU_request = p + params["rescale_buffer"]
-                        rescale_counter += 1
-                        downscale = 0
-                    elif p - CPU_request > params["scale_up_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
-                        
-                        #print("CPU request too low")
-                        CPU_request = p + params["rescale_buffer"]
-                        rescale_counter += 1
-                        scaleup = 0
-                    scaleup += 1
-                    downscale += 1
-            
-                yrequest_temp.append(CPU_request)
-                i += 1 
-            # Weighted MSE where CPU usage is higher than request is weighted x times more
-            sub = np.subtract(series,yrequest_temp)
-            
-            for v in range(len(sub)):
-                
-                if sub[v].flatten() > 0:
-                    sub[v] = sub[v] * 10
-            MSE = np.square(sub).mean() 
-            
-            
-            if MSE < error: 
-
-                error = MSE
-                best_params = params.copy()
-                                
-                               
-    print(error)
-    print(best_params)
-    return best_params
+    series = np.array([1 if i <= 0 else i for i in series]).flatten()
+    return series
 
 s_len = 144
 params = {
     "window_future": 15, #HW
     "window_past": 1, #HW
-    "HW_percentile": 90, #HW
+    "HW_percentile": 95, #HW
     "season_len": s_len, #HW
     "history_len": 3*s_len, #HW
     "rescale_buffer": 100, # FIX
@@ -221,34 +189,15 @@ avgabove_vpa = []
 avgabove_hw = []
 
 
+
 def main():
 
     global s_len
     global params
     global alpha, std
-    global lstm_model
 
-    
-    # 
-
-    # Sine wave
-    A = 300
-    per = s_len
-    B = 2*np.pi/per
-    D = 200
-    sample = 6*per
-    x = np.arange(sample)
-    series = A*np.sin(B*x)+D
-    #alpha = float(args.alpha)
-    series = series * alpha
-
-
-    # np.random.seed(3)
-    noise = np.random.normal(0,int(std),len(series))*(1-alpha)
-    series = [sum(x) for x in zip(noise, series)]
-    series = [int(i) for i in series]
-
-    series = np.array([1 if i <= 0 else i for i in series]).flatten()
+    np.random.seed(3)
+    series = create_sin_noise(A=300, B=200, D=200, per=s_len, total_len=5*s_len)
 
     test_last = s_len*2
 
@@ -266,7 +215,7 @@ def main():
 
     rescale_counter = 0
 
-    steps_in, steps_out, n_features, ywindow = 77, 1, 1, 24
+    steps_in, steps_out, n_features, ywindow = 77, 3, 1, 24
     while i <= len(series):
 
         # What we have seen up until now
@@ -283,13 +232,20 @@ def main():
         #if update model
         raw_seq = series_part
         if i % 144 == 0 or model is None:
-            
-            model = create_lstm(steps_in, steps_out,n_features, raw_seq, ywindow)
+            # model = create_lstm(steps_in, steps_out,n_features, raw_seq, ywindow)
+            if model is None:
+                model = create_lstm(steps_in, steps_out,n_features, raw_seq,ywindow, params["HW_percentile"])
+            else:
+                model = update_lstm(steps_in, steps_out,n_features, raw_seq,ywindow,model, params["HW_percentile"])
 
 
         input_data = np.array(raw_seq[-steps_in:])
         # print(input_data)
-        p = lstm_predict(input_data, model,steps_in, n_features)[0]
+        # print(lstm_predict(input_data, model,steps_in, n_features))
+        outarray = lstm_predict(input_data, model,steps_in, n_features)
+        p = outarray[0]
+        lower = outarray[1]
+        upper = outarray[2]
 
         # if i % s_len == 0:
 
@@ -312,19 +268,19 @@ def main():
 
         # if best:
         CPU_request_temp = CPU_request - params["rescale_buffer"]
-        if scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
-            if CPU_request_temp - p > params["scale_down_buffer"]:
+        
+        if CPU_request_temp > upper and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+        
+            #print("CPU request wasted")
+            CPU_request = p + params["rescale_buffer"]
+            rescale_counter += 1
+            downscale = 0
+        elif CPU_request_temp < lower and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
             
-                #print("CPU request wasted")
-                CPU_request = p + params["rescale_buffer"]
-                rescale_counter += 1
-                downscale = 0
-            elif p - CPU_request_temp > params["scale_up_buffer"]: 
-                
-                #print("CPU request too low")
-                CPU_request = p + params["rescale_buffer"]
-                rescale_counter += 1
-                scaleup = 0
+            #print("CPU request too low")
+            CPU_request = p + params["rescale_buffer"]
+            rescale_counter += 1
+            scaleup = 0
         scaleup += 1
         downscale += 1
 
@@ -367,14 +323,14 @@ def main():
     #print(yrequest[skip:])
     yrequest.pop()
 
-    reqs = yrequest[skip*3:]
-    usages = series[skip*3:]
-    vpa_short = vpa[skip*3:]
+    reqs = yrequest[skip*2:]
+    usages = series[skip*2:]
+    vpa_short = vpa[skip*2:]
 
     # reqs = [350 for i in range(195)]
 
     avg_slack = np.average(np.subtract(reqs,usages))
-    avg_slack_vpa = np.average(np.subtract(vpa[skip*3:],usages))
+    avg_slack_vpa = np.average(np.subtract(vpa[skip*2:],usages))
     
     print("HW:", avg_slack)
     print("VPA:", avg_slack_vpa)
@@ -451,8 +407,6 @@ def main():
     #plt.show()
     #plt.savefig('fig1.png', figsize=(19.2,10.8), dpi=100)
 
-   # manager = plt.get_current_fig_manager()
-    #manager.resize(*manager.window.maxsize())
     ax1.set_xlim(left=s_len*2)
     ax2.set_xlim(left=s_len*2)
     fig.set_size_inches(15,8)
@@ -488,14 +442,6 @@ def main():
 
     print("avg above: ", avgabove_vpa)
     print("avg above hw: ", avgabove_hw)
-
-
-
-    
-    
-    
-    
-    
 
 if __name__ == '__main__':
     # alphas = np.linspace(0.1, 1,dtype = float, num=10)

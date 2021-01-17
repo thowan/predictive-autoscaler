@@ -12,39 +12,39 @@ from matplotlib import pyplot
 from scipy import stats
  
 # split a univariate sequence into samples
-def split_sequence(sequence, n_steps_in, n_steps_out):
-    X, y = list(), list()
-    for i in range(len(sequence)):
-        # find the end of this pattern
-        end_ix = i + n_steps_in
-        out_end_ix = end_ix + n_steps_out
-        # check if we are beyond the sequence
-        if out_end_ix > len(sequence):
-            break
-        # gather input and output parts of the pattern
-        seq_x, seq_y = sequence[i:end_ix], sequence[end_ix:out_end_ix]
-        X.append(seq_x)
-        y.append(seq_y)
-        #print(np.array(X), np.array(y))
-
-    return np.array(X), np.array(y)
-
-# split a univariate sequence into samples
-# def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
+# def split_sequence(sequence, n_steps_in, n_steps_out):
 #     X, y = list(), list()
-
-#     for i in range(len(sequence)-ywindow-n_steps_in+1):
+#     for i in range(len(sequence)):
 #         # find the end of this pattern
 #         end_ix = i + n_steps_in
-
+#         out_end_ix = end_ix + n_steps_out
+#         # check if we are beyond the sequence
+#         if out_end_ix > len(sequence):
+#             break
 #         # gather input and output parts of the pattern
-#         # print(sequence[end_ix:end_ix+ywindow])
-#         seq_x, seq_y = sequence[i:end_ix], np.percentile(sequence[end_ix:end_ix+ywindow], 100)
+#         seq_x, seq_y = sequence[i:end_ix], sequence[end_ix:out_end_ix]
 #         X.append(seq_x)
 #         y.append(seq_y)
+#         print(np.array(X), np.array(y))
 
-#     # print(np.array(X), np.array(y))
 #     return np.array(X), np.array(y)
+
+# split a univariate sequence into samples
+def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
+    X, y = list(), list()
+
+    for i in range(len(sequence)-ywindow-n_steps_in+1):
+        # find the end of this pattern
+        end_ix = i + n_steps_in
+
+        # gather input and output parts of the pattern
+        # print(sequence[end_ix:end_ix+ywindow])
+        seq_x, seq_y = sequence[i:end_ix], np.percentile(sequence[end_ix:end_ix+ywindow], 95)
+        X.append(seq_x)
+        y.append(seq_y)
+
+    # print(np.array(X), np.array(y))
+    return np.array(X), np.array(y)
 
 def trans_foward(arr):
     global scaler
@@ -56,14 +56,14 @@ def trans_back(arr):
     out_arr = scaler.inverse_transform(arr.flatten().reshape(-1, 1))
     return out_arr.flatten()
 
-def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
+def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow):
     global scaler
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaler = scaler.fit(raw_seq.reshape(-1, 1))
     #print("First 10 of raw_seq:", raw_seq[:20])
     dataset = trans_foward(raw_seq)
     # split into samples
-    X, y = split_sequence(dataset, n_steps_in, n_steps_out)
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow)
     # reshape from [samples, timesteps] into [samples, timesteps, features]
     
     X = X.reshape((X.shape[0], X.shape[1], n_features))
@@ -80,7 +80,7 @@ def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     model.add(Dense(n_steps_out))
     model.compile(optimizer='adam', loss='mse')
     # fit model
-    model.fit(X, y, epochs=20, verbose=1)
+    model.fit(X, y, epochs=15, verbose=1)
 
     # X, X_valid = train_test_split(X, int(len(X)*0.7))
     # y, y_valid = train_test_split(y, int(len(y)*0.7))
@@ -107,8 +107,7 @@ def train_test_split(data, n_test):
 	return data[:n_test+1], data[-n_test:]
 
 def main():
-    steps_in, steps_out, n_features, ywindow = 2*24, 24, 1, 36
-    np.random.seed(3)
+    steps_in, steps_out, n_features, ywindow = 77, 1, 1, 24
 
     #start_pred = 60
     #raw_seq = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140])
@@ -134,44 +133,44 @@ def main():
     series = [sum(x) for x in zip(noise, series)]
     raw_seq = np.array([int(i) for i in series])
 
-    lstm_model = create_lstm(steps_in, steps_out,n_features, raw_seq)
+    lstm_model = create_lstm(steps_in, steps_out,n_features, raw_seq, ywindow)
 
     #input_data = np.array([60, 70,80,90])
     start_pred = 150
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
     start_pred = 200
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
     start_pred = 300
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
     start_pred = 400
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
     start_pred = 500
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
     start_pred = 600
     input_data = np.array(raw_seq[start_pred-steps_in:start_pred])
     yhat = lstm_predict(input_data, lstm_model,steps_in, n_features)
-    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], np.percentile(yhat, 100)))
-    print("Predi:", np.percentile(yhat, 100))
+    print("Pred perc:", stats.percentileofscore(raw_seq[start_pred:start_pred+ywindow], yhat))
+    print("Predi:", yhat)
     print("Valid 90th perc:", np.percentile(raw_seq[start_pred:start_pred+ywindow],90))
 
 if __name__ == '__main__':

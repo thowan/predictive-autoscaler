@@ -88,6 +88,33 @@ def trans_back(arr):
     out_arr = scaler.inverse_transform(arr.flatten().reshape(-1, 1))
     return out_arr.flatten()
 
+def update_lstm(n_steps_in, n_steps_out, n_features,raw_seq, model):
+    global scaler
+    raw_seq = np.array(raw_seq)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = scaler.fit(raw_seq.reshape(-1, 1))
+    
+    dataset = trans_foward(raw_seq)
+    # split into samples
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out)
+    # reshape from [samples, timesteps] into [samples, timesteps, features]
+    
+    X = X.reshape((X.shape[0], X.shape[1], n_features))
+    # print(y.shape)
+    # print(X[-1:,:,:].shape, y[-1:,:].shape)
+    # Update
+    model.fit(X[-144:,:,:], y[-144:,:], epochs=30, verbose=1)
+
+    # history = model.fit(X, y, epochs=60, validation_data=(X_valid, y_valid))
+    # pyplot.plot(history.history['loss'])
+    # pyplot.plot(history.history['val_loss'])
+    # pyplot.title('model train vs validation loss')
+    # pyplot.ylabel('loss')
+    # pyplot.xlabel('epoch')
+    # pyplot.legend(['train', 'validation'], loc='upper right')
+    # pyplot.show()
+    return model
+
 def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     global scaler
     raw_seq = np.array(raw_seq)
@@ -100,9 +127,9 @@ def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     # reshape from [samples, timesteps] into [samples, timesteps, features]
     
     X = X.reshape((X.shape[0], X.shape[1], n_features))
-
+    
     # define model
-
+    
     model = Sequential()
     #model.add(LSTM(100, input_shape=(n_steps_in, n_features)))
     model.add(LSTM(50, return_sequences=True , input_shape=(n_steps_in, n_features)))
@@ -111,7 +138,7 @@ def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq):
     model.add(Dense(n_steps_out))
     model.compile(optimizer='adam', loss='mse')
     # fit model
-    model.fit(X, y, epochs=20, verbose=1)
+    model.fit(X, y, epochs=40, verbose=1)
 
     # history = model.fit(X, y, epochs=60, validation_data=(X_valid, y_valid))
     # pyplot.plot(history.history['loss'])
@@ -193,14 +220,14 @@ s_len = 144
 params = {
     "window_future": 15, #HW
     "window_past": 1, #HW
-    "HW_percentile": 90, #HW
+    "HW_percentile": 95, #HW
     "season_len": s_len, #HW
     "history_len": 3*s_len, #HW
     "rescale_buffer": 100, # FIX
-    "scaleup_count": 15, #FIX
-    "scaledown_count": 15, #FIX
+    "scaleup_count": 18, #FIX
+    "scaledown_count": 18, #FIX
     "scale_down_buffer": 100,
-    "scale_up_buffer":50
+    "scale_up_buffer":100
 }
 
 avgslack_list_vpa = []
@@ -249,8 +276,8 @@ def main():
 
     i = test_last 
 
-    scaleup = 0
-    downscale = 0
+    scaleup = np.inf
+    downscale = np.inf
     best = False
     model = None
 
@@ -273,8 +300,11 @@ def main():
         #if update model
         raw_seq = series_part
         if i % 144 == 0 or model is None:
-            
-            model = create_lstm(steps_in, steps_out,n_features, raw_seq)
+            # model = create_lstm(steps_in, steps_out,n_features, raw_seq)
+            if model is None:
+                model = create_lstm(steps_in, steps_out,n_features, raw_seq)
+            else:
+                model = update_lstm(steps_in, steps_out,n_features, raw_seq,model)
 
 
         input_data = np.array(raw_seq[-steps_in:])
@@ -284,6 +314,7 @@ def main():
         # if i % s_len == 0:
 
         #print(model_fit.params_formatted)
+        # print(np.max(x))
         p = np.percentile(x, params["HW_percentile"])
 
         if p < 0:
@@ -291,25 +322,26 @@ def main():
         Y.append(p)
 
         # # If HW has been running for 1 season
-        if len(Y) >= s_len and len(Y) % s_len == 0:
+        # if len(Y) >= s_len and len(Y) % s_len == 0:
 
-            a = Y[-params["history_len"]:]
+        #     a = Y[-params["history_len"]:]
 
-            a = [x for x in a if not math.isnan(x)]
+        #     a = [x for x in a if not math.isnan(x)]
             
-            params = get_best_params(a)
-            best = True
+        #     params = get_best_params(a)
+        #     best = True
 
-        if best:
-            CPU_request_temp = CPU_request - params["rescale_buffer"]
-            if CPU_request_temp - p > params["scale_down_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+        # if best:
+        CPU_request_temp = CPU_request - params["rescale_buffer"]
+        if scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+            if CPU_request_temp - p > params["scale_down_buffer"]:
             
                 #print("CPU request wasted")
                 CPU_request = p + params["rescale_buffer"]
                 rescale_counter += 1
                 downscale = 0
-            elif p - CPU_request_temp > params["scale_up_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
-               
+            elif p - CPU_request_temp > params["scale_up_buffer"]: 
+                
                 #print("CPU request too low")
                 CPU_request = p + params["rescale_buffer"]
                 rescale_counter += 1
@@ -356,14 +388,14 @@ def main():
     #print(yrequest[skip:])
     yrequest.pop()
 
-    reqs = yrequest[skip*3:]
-    usages = series[skip*3:]
-    vpa_short = vpa[skip*3:]
+    reqs = yrequest[skip*2:]
+    usages = series[skip*2:]
+    vpa_short = vpa[skip*2:]
 
     # reqs = [350 for i in range(195)]
 
     avg_slack = np.average(np.subtract(reqs,usages))
-    avg_slack_vpa = np.average(np.subtract(vpa[skip*3:],usages))
+    avg_slack_vpa = np.average(np.subtract(vpa[skip*2:],usages))
     
     print("HW:", avg_slack)
     print("VPA:", avg_slack_vpa)
@@ -442,8 +474,8 @@ def main():
 
    # manager = plt.get_current_fig_manager()
     #manager.resize(*manager.window.maxsize())
-    ax1.set_xlim(left=s_len*3)
-    ax2.set_xlim(left=s_len*3)
+    ax1.set_xlim(left=s_len*2)
+    ax2.set_xlim(left=s_len*2)
     fig.set_size_inches(15,8)
     fig2.set_size_inches(15,8)
     plt.show()
