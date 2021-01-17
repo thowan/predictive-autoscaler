@@ -60,7 +60,7 @@ def split_sequence(sequence, n_steps_in, n_steps_out, ywindow, perc):
 
         # gather input and output parts of the pattern
         # print(sequence[end_ix:end_ix+ywindow])
-        seq_x, seq_y = sequence[i:end_ix], [np.percentile(sequence[end_ix:end_ix+ywindow], perc), np.percentile(sequence[end_ix:end_ix+ywindow], 60), np.percentile(sequence[end_ix:end_ix+ywindow], 100)]
+        seq_x, seq_y = sequence[i:end_ix], np.percentile(sequence[end_ix:end_ix+ywindow], perc)
         X.append(seq_x)
         y.append(seq_y)
 
@@ -144,6 +144,63 @@ def lstm_predict(input_data,model,n_steps_in,n_features):
 def train_test_split(data, n_test):
 	return data[:n_test+1], data[-n_test:]
 
+def get_best_params(series):
+    global params
+    global scale_d_b, scale_u_b
+    error = np.inf
+    best_params = None
+    for a in scale_d_b:
+        for b in scale_u_b:
+
+            params["scale_down_buffer"] = a
+            params["scale_up_buffer"] = b
+
+            rescale_counter = 0
+            scaleup = 0
+            downscale = 0
+            CPU_request = 500
+            i = 0
+            yrequest_temp = []
+            
+            while i < len(series):
+                if i > 10:
+
+                    p = series[i]
+                    if CPU_request - p > params["scale_down_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+                        #print("CPU request wasted")
+                        CPU_request = p + params["rescale_buffer"]
+                        rescale_counter += 1
+                        downscale = 0
+                    elif p - CPU_request > params["scale_up_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
+                        
+                        #print("CPU request too low")
+                        CPU_request = p + params["rescale_buffer"]
+                        rescale_counter += 1
+                        scaleup = 0
+                    scaleup += 1
+                    downscale += 1
+            
+                yrequest_temp.append(CPU_request)
+                i += 1 
+            # Weighted MSE where CPU usage is higher than request is weighted x times more
+            sub = np.subtract(series,yrequest_temp)
+            
+            for v in range(len(sub)):
+                
+                if sub[v].flatten() > 0:
+                    sub[v] = sub[v] * 10
+            MSE = np.square(sub).mean() 
+            
+            
+            if MSE < error: 
+
+                error = MSE
+                best_params = params.copy()
+                                
+                               
+    print(error)
+    print(best_params)
+    return best_params
 
 def create_sin_noise(A, B, D, per, total_len):
     # Sine wave
@@ -196,7 +253,7 @@ def main():
     global params
     global alpha, std
 
-    np.random.seed(13)
+    np.random.seed(3)
     series = create_sin_noise(A=300, B=200, D=200, per=s_len, total_len=5*s_len)
 
     test_last = s_len*2
@@ -215,7 +272,7 @@ def main():
 
     rescale_counter = 0
 
-    steps_in, steps_out, n_features, ywindow = 77, 3, 1, 24
+    steps_in, steps_out, n_features, ywindow = 77, 1, 1, 24
     while i <= len(series):
 
         # What we have seen up until now
@@ -241,11 +298,7 @@ def main():
 
         input_data = np.array(raw_seq[-steps_in:])
         # print(input_data)
-        # print(lstm_predict(input_data, model,steps_in, n_features))
-        outarray = lstm_predict(input_data, model,steps_in, n_features)
-        p = outarray[0]
-        lower = outarray[1]
-        upper = outarray[2]
+        p = lstm_predict(input_data, model,steps_in, n_features)[0]
 
         # if i % s_len == 0:
 
@@ -268,19 +321,19 @@ def main():
 
         # if best:
         CPU_request_temp = CPU_request - params["rescale_buffer"]
-        
-        if CPU_request_temp > upper and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
-        
-            #print("CPU request wasted")
-            CPU_request = p + params["rescale_buffer"]
-            rescale_counter += 1
-            downscale = 0
-        elif CPU_request_temp < lower and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
+        if scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
+            if CPU_request_temp - p > params["scale_down_buffer"]:
             
-            #print("CPU request too low")
-            CPU_request = p + params["rescale_buffer"]
-            rescale_counter += 1
-            scaleup = 0
+                #print("CPU request wasted")
+                CPU_request = p + params["rescale_buffer"]
+                rescale_counter += 1
+                downscale = 0
+            elif p - CPU_request_temp > params["scale_up_buffer"]: 
+                
+                #print("CPU request too low")
+                CPU_request = p + params["rescale_buffer"]
+                rescale_counter += 1
+                scaleup = 0
         scaleup += 1
         downscale += 1
 
@@ -407,6 +460,8 @@ def main():
     #plt.show()
     #plt.savefig('fig1.png', figsize=(19.2,10.8), dpi=100)
 
+
+    #manager.resize(*manager.window.maxsize())
     ax1.set_xlim(left=s_len*2)
     ax2.set_xlim(left=s_len*2)
     fig.set_size_inches(15,8)
