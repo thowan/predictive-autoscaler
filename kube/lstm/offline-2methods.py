@@ -341,13 +341,13 @@ def main():
     
     # PLOT 1 predictions, order: CPU, VPA, HW, LSTM, HW b, LSTM b
     
-    ax1.plot(series_X, series, 'g-', linewidth=1,label='CPU usage')
+    ax1.plot(series_X, series, 'y-', linewidth=1,label='CPU usage')
 
     #Plot estimate of VPA target
     target = np.percentile(series, 90) + 50
     vpa_target = [target] * len(series_X)
 
-    ax1.plot(series_X, vpa_target, 'y--', linewidth=1,label='VPA target')
+    ax1.plot(series_X, vpa_target, 'g--', linewidth=1,label='VPA target')
     
     ax1.plot(X_targets, hw_targets, 'r-', linewidth=2,label='HW target')
 
@@ -360,12 +360,15 @@ def main():
 
 
     t = ("CPU prediction, alpha: " + str(round(alpha,1)))
-    fig1.suptitle(t, fontsize=30)
+    fig1.suptitle(t, fontsize=23)
     
     ax1.tick_params(axis="x", labelsize=20) 
     ax1.tick_params(axis="y", labelsize=20) 
 
-    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+    leg1 = ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg1_lines = leg1.get_lines()
+    plt.setp(leg1_lines, linewidth=5)
+
     ax1.set_xlabel('Observations', fontsize=20)
     ax1.set_ylabel('CPU (millicores)', fontsize=20)
 
@@ -383,12 +386,15 @@ def main():
     
 
     t2 = "CPU slack, alpha: " + str(round(alpha,1))
-    fig2.suptitle(t2, fontsize=30)
+    fig2.suptitle(t2, fontsize=23)
     ax2.tick_params(axis="x", labelsize=20) 
     ax2.tick_params(axis="y", labelsize=20) 
     fig2.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
-    # ax2.legend(loc='best', fancybox=True, shadow=True, ncol=6, fontsize=24)
-    ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+
+    leg2 = ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg2_lines = leg2.get_lines()
+    plt.setp(leg2_lines, linewidth=5)
+
     ax2.set_xlabel('Observations', fontsize=20)
     ax2.set_ylabel('CPU (millicores)', fontsize=20)
     # ax2.set_ylim(bottom=-100)
@@ -396,19 +402,22 @@ def main():
 
     # PLOT 3 Requests
 
-    ax3.plot(series_X, series, 'g-', linewidth=1,label='CPU usage')
-    ax3.plot(series_X, vpa_target, 'y--', linewidth=1,label='VPA requested')
+    ax3.plot(series_X, series, 'y-', linewidth=1,label='CPU usage')
+    ax3.plot(series_X, vpa_target, 'g--', linewidth=1,label='VPA requested')
     ax3.plot(X_requests,hw_requests, 'r-', linewidth=2,label='HW requested')
     ax3.plot(X_requests,lstm_requests, 'b--', linewidth=2,label='LSTM requested')
     
     
 
     t3 = "CPU autoscaling, alpha: " + str(round(alpha,1))
-    fig3.suptitle(t3, fontsize=30)
+    fig3.suptitle(t3, fontsize=23)
     ax3.tick_params(axis="x", labelsize=20) 
     ax3.tick_params(axis="y", labelsize=20) 
     fig3.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
-    ax3.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+    leg3 = ax3.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg3_lines = leg3.get_lines()
+    plt.setp(leg3_lines, linewidth=5)
+
     ax3.set_xlabel('Observations', fontsize=20)
     ax3.set_ylabel('CPU (millicores)', fontsize=20)
 
@@ -568,7 +577,7 @@ if __name__ == '__main__':
 
     fig4 = plt.figure(4)
     ax4 = fig4.add_subplot(1,1,1)
-    fig4.suptitle("Slack", fontsize=30)
+    fig4.suptitle("Slack", fontsize=23)
     fig4.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
     fig4.set_size_inches(15,8)
 
@@ -587,7 +596,10 @@ if __name__ == '__main__':
     ax4.tick_params(axis="x", labelsize=20) 
     ax4.tick_params(axis="y", labelsize=20) 
 
-    ax4.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+    leg4 = ax4.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg4_lines = leg4.get_lines()
+    plt.setp(leg4_lines, linewidth=5)
+    
     ax4.set_xlabel('Alpha', fontsize=20)
     ax4.set_ylabel('CPU (millicores)', fontsize=20)
 
@@ -615,7 +627,7 @@ if __name__ == '__main__':
 
     fig5 = plt.figure(5)
     ax5 = fig5.add_subplot(1,1,1)
-    fig5.suptitle("Usage above requested", fontsize=30)
+    fig5.suptitle("Usage above requested", fontsize=23)
     fig5.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
     fig5.set_size_inches(15,8)
 
@@ -634,7 +646,11 @@ if __name__ == '__main__':
     ax5.tick_params(axis="x", labelsize=20) 
     ax5.tick_params(axis="y", labelsize=20) 
 
-    ax5.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+    leg5 = ax5.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+
+    leg5_lines = leg5.get_lines()
+    plt.setp(leg5_lines, linewidth=5)
+
     ax5.set_xlabel('Alpha', fontsize=20)
     ax5.set_ylabel('CPU (millicores)', fontsize=20)
 
