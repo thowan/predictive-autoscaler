@@ -455,7 +455,7 @@ def update_main_plot():
     else:
         pred_targets.append(np.nan)
         pred_lowers.append(np.nan)
-        pred_targets.append(np.nan)
+        pred_uppers.append(np.nan)
 
     pred_x = range(len(pred_targets))
     # pred_x = [i * 15 for i in pred_x] TODO
@@ -519,23 +519,21 @@ def main():
     plotVPA = True
 
     # Fast initialize-------------------------------------------------------
-    np.random.seed(13)
-    series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
-    cpu_usages = series.tolist()
-    cpu_requests = [700]*len(cpu_usages)
-    cpu_x = range(len(cpu_usages))
+    #np.random.seed(13)
+    #series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
+    #cpu_usages = series.tolist()
+    #cpu_requests = [700]*len(cpu_usages)
+    #cpu_x = range(len(cpu_usages))
 
+    #pred_targets = [np.nan]*len(cpu_usages)
+    #pred_lowers = [np.nan]*len(cpu_usages)
+    #pred_uppers = [np.nan]*len(cpu_usages)
+    #pred_x = range(len(cpu_usages))
     
-    pred_targets = [np.nan]*len(cpu_usages)
-    pred_lowers = [np.nan]*len(cpu_usages)
-    pred_uppers = [np.nan]*len(cpu_usages)
-    pred_x = range(len(cpu_usages))
-
-    
-    vpa_targets = [np.nan]*len(cpu_usages)
-    vpa_lowers = [np.nan]*len(cpu_usages)
-    vpa_uppers = [np.nan]*len(cpu_usages)
-    vpa_x = range(len(cpu_usages))
+    #vpa_targets = [np.nan]*len(cpu_usages)
+    #vpa_lowers = [np.nan]*len(cpu_usages)
+    #vpa_uppers = [np.nan]*len(cpu_usages)
+    #vpa_x = range(len(cpu_usages))
     #--------------------------------------------------------------------
 
     # Keyboard input
@@ -575,7 +573,7 @@ def main():
         update_main_plot()
         update_slack_plot() 
         
-        if data == 'y' or len(pred_targets)%500 == 0:
+        if data == 'y' or len(pred_targets)%144 == 0:
             print("Saving fig")
             
 
@@ -583,8 +581,8 @@ def main():
             plot_main()
             plot_slack()
             
-            fig1.savefig("./main.png",bbox_inches='tight')
-            fig2.savefig("./slack.png", bbox_inches="tight")  
+            fig1.savefig("./main"+str(len(pred_targets))+".png",bbox_inches='tight')
+            fig2.savefig("./slack"+str(len(pred_targets))+".png",bbox_inches='tight')
             
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
