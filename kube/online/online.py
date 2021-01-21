@@ -536,15 +536,15 @@ def main():
     cpu_x = range(len(cpu_usages))
 
     
-    pred_targets = [np.nan]*len(pred_targets)
-    pred_lowers = [np.nan]*len(pred_targets)
-    pred_uppers = [np.nan]*len(pred_targets)
+    pred_targets = [np.nan]*len(cpu_usages)
+    pred_lowers = [np.nan]*len(cpu_usages)
+    pred_uppers = [np.nan]*len(cpu_usages)
     pred_x = range(len(cpu_usages))
 
     
-    vpa_targets = [np.nan]*len(vpa_targets)
-    vpa_lowers = [np.nan]*len(vpa_targets)
-    vpa_uppers = [np.nan]*len(vpa_targets)
+    vpa_targets = [np.nan]*len(cpu_usages)
+    vpa_lowers = [np.nan]*len(cpu_usages)
+    vpa_uppers = [np.nan]*len(cpu_usages)
     vpa_x = range(len(cpu_usages))
     #--------------------------------------------------------------------
 
