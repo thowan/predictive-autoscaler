@@ -63,6 +63,9 @@ pred_targets = []
 pred_lowers = []
 pred_uppers = []
 
+cpu_slacks = []
+vpa_slacks = []
+
 cooldown = 0
 model = None
 hw_model = None
@@ -248,32 +251,6 @@ def get_input():
     while True:
         data = input()
 
-def update_slack_plot():
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
-    global params
-    
-    ax2.clear()
-    skip = params["season_len"]*3
-    if len(cpu_requests)>skip:
-        
-        hw_slack = np.subtract(cpu_requests[skip:],cpu_usages[skip:])
-        vpa_slack = np.subtract(vpa_targets[skip:],cpu_usages[skip:])
-
-        ax2.plot(cpu_x[skip:], hw_slack, 'ro-', linewidth=2, label='HW slack')
-        ax2.plot(cpu_x[skip:], vpa_slack, 'yo-', linewidth=2, label='VPA slack')
-
-
-        fig2.suptitle('Slack', fontsize=23)
-
-        ax2.tick_params(axis="x", labelsize=20) 
-        ax2.tick_params(axis="y", labelsize=20) 
-        fig2.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
-        ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
-        ax2.set_xlabel('Time (s)', fontsize=20)
-        ax2.set_ylabel('CPU (millicores)', fontsize=20)
-        # ax2.set_ylim(bottom=-100)
-        # ax2.set_ylim(top=505)
-    
 # split a univariate sequence into samples
 def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
     X, y = list(), list()
@@ -482,29 +459,40 @@ def update_main_plot():
 
     pred_x = range(len(pred_targets))
     # pred_x = [i * 15 for i in pred_x] TODO
-        
+     
+def update_slack_plot():
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global params
+    global cpu_slacks, vpa_slacks
+    
+    ax2.clear()
+    skip = params["season_len"]*2
+    if len(cpu_requests)>skip:
+        cpu_slacks.append(np.subtract(cpu_requests[skip:],cpu_usages[skip:]))
+        vpa_slacks.append(np.subtract(vpa_targets[skip:],cpu_usages[skip:]))
+
+
+def plot_slack():
+    global fig2, ax2
+    global cpu_slacks, vpa_slacks
+
+    ax2.clear()
+
+    ax2.plot(cpu_x[skip:], cpu_slacks, 'b--', linewidth=2, label='CPU slack')
+    ax2.plot(cpu_x[skip:], vpa_slacks, 'g-', linewidth=2, label='VPA slack')
+    ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    ax2.set_xlabel('Time (s)', fontsize=20)
+    ax2.set_ylabel('CPU (millicores)', fontsize=20)
+   
         
         
 # Plot the main graph, do not show
 # VPA target, CPU requests/usage, LSTM bounds
-
-a = []
-b = []
-i = 0
-
 def plot_main():
     global fig1, ax1
     global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
 
     ax1.clear()
-    
-    # Testing --------------------------------------
-    # global a,b,i
-    # a.append(i)
-    # b.append(np.random.rand(1))
-    # ax1.plot(a, b, 'g--', linewidth=1,label='VPA target')
-    # i += 1
-    # Testing end ------------------------------------
     
     ax1.plot(vpa_x, vpa_targets, 'g--', linewidth=1,label='VPA target')
     ax1.plot(pred_x, pred_targets, 'r-', linewidth=2,label='Prediction target')
@@ -553,14 +541,20 @@ def main():
     input_thread = threading.Thread(target=get_input)
     input_thread.start()
 
-#------------------------------------------
+# Plot setups ------------------------------------------
     # Set plot title, legend, labels
     fig1.suptitle('nginx pod metrics', fontsize=23)
     fig1.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
 
-    # Main plot settings
+    fig2.suptitle('Slack', fontsize=23)
+    fig2.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
+
+    # Plot settings
     ax1.tick_params(axis="x", labelsize=20) 
     ax1.tick_params(axis="y", labelsize=20) 
+
+    ax2.tick_params(axis="x", labelsize=20) 
+    ax2.tick_params(axis="y", labelsize=20) 
     
 # ---------------------------------------------------------------------
 
@@ -576,7 +570,7 @@ def main():
     while True:
         
         update_main_plot()
-        # update_slack_plot() TODO
+        update_slack_plot() 
         
         if data == 'y' or len(pred_targets)%500 == 0:
             print("Saving fig")
@@ -584,9 +578,10 @@ def main():
 
             # Plot figure 
             plot_main()
+            plot_slack()
             
             fig1.savefig("./main.png",bbox_inches='tight')
-            #fig2.savefig("./slack"+str(len(pred_targets))+".png", bbox_inches="tight")  TODO
+            fig2.savefig("./slack.png", bbox_inches="tight")  
             
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
