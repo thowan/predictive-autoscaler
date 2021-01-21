@@ -465,7 +465,6 @@ def update_slack_plot():
     global params
     global cpu_slacks, vpa_slacks
     
-    ax2.clear()
     skip = params["season_len"]*2
     if len(cpu_requests)>skip:
         cpu_slacks.append(np.subtract(cpu_requests[skip:],cpu_usages[skip:]))
@@ -477,6 +476,7 @@ def plot_slack():
     global cpu_slacks, vpa_slacks
 
     ax2.clear()
+    skip = params["season_len"]*2
 
     ax2.plot(cpu_x[skip:], cpu_slacks, 'b--', linewidth=2, label='CPU slack')
     ax2.plot(cpu_x[skip:], vpa_slacks, 'g-', linewidth=2, label='VPA slack')
