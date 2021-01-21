@@ -85,21 +85,6 @@ params = {
 }
 #-------------------------------------------------------------------
 
-# Fast initialize
-np.random.seed(13)
-series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
-cpu_usages = series
-cpu_requests = [700]*len(cpu_requests)
-cpu_x = range(len(cpu_usages))
-
-pred_targets = [np.nan]*len(cpu_requests)
-pred_lowers = [np.nan]*len(cpu_requests)
-pred_uppers = [np.nan]*len(cpu_requests)
-
-vpa_targets = [np.nan]*len(cpu_requests)
-vpa_lowers = [np.nan]*len(cpu_requests)
-vpa_uppers = [np.nan]*len(cpu_requests)
-
 
 def create_sin_noise(A, D, per, total_len):
     # Sine wave
@@ -534,6 +519,26 @@ def main():
     global data
     global fig1, fig2, ax1, ax2
     plotVPA = True
+
+    # Fast initialize-------------------------------------------------------
+    np.random.seed(13)
+    series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
+    cpu_usages = series
+    cpu_requests = [700]*len(cpu_requests)
+    cpu_x = range(len(cpu_usages))
+
+    
+    pred_targets = [np.nan]*len(pred_targets)
+    pred_lowers = [np.nan]*len(pred_targets)
+    pred_uppers = [np.nan]*len(pred_targets)
+    pred_x = range(len(cpu_usages))
+
+    
+    vpa_targets = [np.nan]*len(vpa_targets)
+    vpa_lowers = [np.nan]*len(vpa_targets)
+    vpa_uppers = [np.nan]*len(vpa_targets)
+    vpa_x = range(len(cpu_usages))
+    #--------------------------------------------------------------------
 
     # Keyboard input
     data = [None]
