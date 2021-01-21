@@ -519,7 +519,7 @@ def main():
     
 # ---------------------------------------------------------------------
 
-    # patch(client, 500, 500) TODO
+    patch(client, 700, 700) # TODO
 
     # ax1.set_xlim(left=params["season_len"]*2) TODO
     # ax2.set_xlim(left=params["season_len"]*2) TODO
