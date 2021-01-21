@@ -543,7 +543,7 @@ def main():
             fig1.savefig("./main.png",bbox_inches='tight')
             #fig2.savefig("./slack"+str(len(pred_targets))+".png", bbox_inches="tight")  TODO
             
-        sleeptime = 1.0 - ((time.time() - starttime) % 1.0)
+        sleeptime = 5.0 - ((time.time() - starttime) % 5.0)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
         
