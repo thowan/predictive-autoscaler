@@ -250,11 +250,11 @@ def update_slack_plot():
         ax2.tick_params(axis="x", labelsize=20) 
         ax2.tick_params(axis="y", labelsize=20) 
         fig2.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
-        ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
+        ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
         ax2.set_xlabel('Time (s)', fontsize=20)
         ax2.set_ylabel('CPU (millicores)', fontsize=20)
-        ax2.set_ylim(bottom=-100)
-        ax2.set_ylim(top=505)
+        # ax2.set_ylim(bottom=-100)
+        # ax2.set_ylim(top=505)
     
 # split a univariate sequence into samples
 def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
@@ -490,7 +490,7 @@ def plot_main():
     # ax1.plot(pred_x, pred_targets, 'bo-', linewidth=2, label='Holt-winters')
     # ax1.plot(cpu_x, cpu_requests, 'ro-', linewidth=2, label='Requested')
     # ax1.plot(cpu_x, cpu_usages, 'go-', linewidth=2, label='CPU usage')
-    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.20), fancybox=True, shadow=True, ncol=5, fontsize=25)
+    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
     ax1.set_xlabel('Observation', fontsize=20)
     ax1.set_ylabel('CPU (millicores)', fontsize=20)
     
