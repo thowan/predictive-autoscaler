@@ -62,7 +62,6 @@ def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
         X.append(seq_x)
         y.append(seq_y)
 
-    # print(np.array(X), np.array(y))
     return np.array(X), np.array(y)
 
 def trans_foward(arr):

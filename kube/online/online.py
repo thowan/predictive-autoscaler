@@ -36,8 +36,8 @@ import seaborn as sns
 # Apply the default theme
 sns.set_theme()
 # K8s config TODO
-# config.load_kube_config()
-# api_client = client.ApiClient()
+config.load_kube_config()
+api_client = client.ApiClient()
 api_client = None
 
 # Plots 
@@ -60,6 +60,13 @@ cpu_requests = []
 
 pred_x = []
 pred_targets = [np.nan]
+pred_lowers = [np.nan]
+pred_uppers = [np.nan]
+
+cooldown = 0
+model = None
+hw_model = None
+steps_in, steps_out, n_features, ywindow = 48, 3, 1, 24
 
 #PARAMETERS
 params = {
@@ -68,7 +75,7 @@ params = {
     "lstm_target": 90, 
     "lstm_upper": 98, 
     "lstm_lower": 60, 
-    "HW_target": 90, 
+    "pred_target": 90, 
     "HW_upper": 98, 
     "HW_lower": 60, 
     "season_len": 144, 
@@ -127,7 +134,7 @@ def get_running_pod(client, name, namespace):
     except ApiException as e:
         print('Found exception in reading the logs', e)
 
-def get_cpu_metrics_server(api_client):
+def get_cpu_usage(api_client):
     # ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/default/pods/nginx-deployment-67c998fb9b-gmxqz', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
     
     # response = ret_metrics[0].data.decode('utf-8')
@@ -158,7 +165,7 @@ def get_cpu_metrics_server(api_client):
             
             except IndexError:
                 time.sleep(1.0)
-                return get_cpu_metrics_server(api_client)
+                return get_cpu_usage(api_client)
             return ret
 
 def get_cpu_requests(client):
@@ -224,8 +231,8 @@ def get_input():
         data = input()
 
 def update_slack_plot():
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets
-    global rescale_counter, scaleup, downscale, params
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global params
     
     ax2.clear()
     skip = params["season_len"]*3
@@ -249,123 +256,205 @@ def update_slack_plot():
         ax2.set_ylim(bottom=-100)
         ax2.set_ylim(top=505)
     
+# split a univariate sequence into samples
+def split_sequence(sequence, n_steps_in, n_steps_out, ywindow):
+    X, y = list(), list()
+
+    for i in range(len(sequence)-ywindow-n_steps_in+1):
+        # find the end of this pattern
+        end_ix = i + n_steps_in
+
+        # gather input and output parts of the pattern
+        # print(sequence[end_ix:end_ix+ywindow])
+        seq_x, seq_y = sequence[i:end_ix], [np.percentile(sequence[end_ix:end_ix+ywindow], params["lstm_target"]), np.percentile(sequence[end_ix:end_ix+ywindow], params["lstm_lower"]), np.percentile(sequence[end_ix:end_ix+ywindow], params["lstm_upper"])]
+        X.append(seq_x)
+        y.append(seq_y)
+
+    return np.array(X), np.array(y)
+
+def trans_foward(arr):
+    global scaler
+    out_arr = scaler.transform(arr.reshape(-1, 1))
+    return out_arr.flatten()
+
+def trans_back(arr):
+    global scaler
+    out_arr = scaler.inverse_transform(arr.flatten().reshape(-1, 1))
+    return out_arr.flatten()
+
+def train_test_split(data, n_test):
+	return data[:n_test+1], data[-n_test:]
+
+def create_lstm(n_steps_in, n_steps_out, n_features,raw_seq, ywindow):
+    global scaler
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = scaler.fit(raw_seq.reshape(-1, 1))
+    #print("First 10 of raw_seq:", raw_seq[:20])
+    dataset = trans_foward(raw_seq)
+    # split into samples
+    X, y = split_sequence(dataset, n_steps_in, n_steps_out, ywindow)
+    # reshape from [samples, timesteps] into [samples, timesteps, features]
+    X = X.reshape((X.shape[0], X.shape[1], n_features))
+    # define model
+    model = Sequential()
+    
+    # Multi-layer model 
+    model.add(LSTM(50, return_sequences=True , input_shape=(n_steps_in, n_features)))
+    # model.add(LSTM(50, return_sequences=True))
+    model.add(LSTM(50))
+
+    # Single layer model
+    # model.add(LSTM(100, input_shape=(n_steps_in, n_features)))
+
+    model.add(Dense(n_steps_out))
+    model.compile(optimizer='adam', loss='mse')
+    # fit model
+    model.fit(X, y, epochs=15, verbose=0)
+    
+    return model
+
+def predict_lstm(input_data,model,n_steps_in,n_features):
+    # demonstrate prediction
+    
+    x_input = np.array(trans_foward(input_data))
+    x_input = x_input.reshape((1, n_steps_in, n_features))
+    yhat = model.predict(x_input, verbose=0)
+    output_data = trans_back(yhat)
+
+    lstm_target = output_data[0] # Target percentile value
+    lstm_lower = output_data[1] # Lower bound value 
+    lstm_upper = output_data[2] # upper bound value 
+    if lstm_target < 0:
+        lstm_target = 0
+    if lstm_lower < 0:
+        lstm_lower = 0
+    if lstm_upper < 0:
+        lstm_upper = 0
+
+    return lstm_target, lstm_lower, lstm_upper
+
+def predict_HW(current_step):
+    global params, cpu_usages
+    season = math.ceil((current_step+1)/params["season_len"])
+    history_start_season = season - (params["history_len"]/params["season_len"])
+    if history_start_season < 1:
+        history_start_season = 1
+    history_start = (history_start_season-1) * params["season_len"] 
+    
+    n = int(current_step - history_start)
+    print("n: ",n)
+    model = ExponentialSmoothing(cpu_usages[-n:], trend="add", seasonal="add",seasonal_periods=params["season_len"])
+    model_fit = model.fit()
+    hw_window = model_fit.predict(start=n-params["window_past"],end=n+params["window_future"])
+    pred_target = np.percentile(hw_window, params["pred_target"])
+    hw_lower = np.percentile(hw_window, params["HW_lower"])
+    hw_upper = np.percentile(hw_window, params["HW_upper"])
+    if pred_target < 0:
+        pred_target = 0
+    if hw_lower < 0:
+        hw_lower = 0
+    if hw_upper < 0:
+        hw_upper = 0
+
+    return pred_target, hw_lower, hw_upper
+
 def update_main_plot():
 
     global api_client
-    
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
     global plotVPA 
-    global rescale_counter, scaleup, downscale, params
-    
+    global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
+
     # Testing ----------------------------------------
     # print ("Hello")
     # return
     
+    # Get VPA metrics 
     if plotVPA:
         vpa_target, lowerBound, upperBound = get_vpa_bounds(api_client)
-
-    cpu_usage = get_cpu_metrics_server(api_client)
-
+    # Get CPU metrics 
+    cpu_usage = get_cpu_usage(api_client)
     cpu_requested = get_cpu_requests(client)
+    cpu_requested = get_cpu_requested_value(cpu_requested)
+    cpu_usage = get_cpu_usage_value(cpu_usage)
     
     if cpu_usage is not None and cpu_requested is not None:
 
         # If getting VPA recommendations
-        
         if plotVPA and vpa_target is not None:
 
             vpa_target, lowerBound, upperBound = get_vpa_bound_values(vpa_target, lowerBound, upperBound)
             
+            # Update VPA arrays
             vpa_targets.append(vpa_target)
             vpa_lowers.append(lowerBound)
             vpa_uppers.append(upperBound)
             vpa_x = range(len(vpa_targets))
-            vpa_x = [i * 15 for i in vpa_x] #FIX THIS
+            # vpa_x = [i * 15 for i in vpa_x] #TODO
         else:
             vpa_targets.append(np.nan)
             vpa_lowers.append(np.nan)
             vpa_uppers.append(np.nan)
 
-        cpu_requested = get_cpu_requested_value(cpu_requested)
 
-        cpu_usage = get_cpu_usage_value(cpu_usage)
+        # Update cpu arrays
 
-        # When rescaling, CPU usage falls to 0 as new pod starts up FIX THIS
-        if cpu_usage <= 0 and len(cpu_usages) > 0:
-            cpu_usage = cpu_usages[-1]
+        # When rescaling, CPU usage falls to 0 as new pod starts up TODO need?
+        # if cpu_usage <= 0 and len(cpu_usages) > 0:
+        #     cpu_usage = cpu_usages[-1]
+
         cpu_requests.append(cpu_requested)
         cpu_usages.append(cpu_usage)
-
-
-        # 15 seconds per new point in
         cpu_x = range(len(cpu_usages))
-        cpu_x = [i * 15 for i in cpu_x]
+        # cpu_x = [i * 15 for i in cpu_x] #TODO
 
 
-        # Holt-winter prediction
-
-        start_time = params["season_len"] * 2
+        # Prediction config
+        scaling_start_index = params["season_len"] * 2
         current_step = len(cpu_usages)
 
 
-        if current_step >= start_time: 
+        if current_step >= scaling_start_index: 
+            # HW Prediction
+            pred_target, pred_lower, pred_upper = predict_HW(current_step)
+            # LSTM prediction
+            # TODO model is created using all historical usages
+            lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
+            input_data = np.array(cpu_usages[-steps_in:])
+            pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
+            
+           
 
+            pred_targets.append(pred_target)
+            pred_lowers.append(pred_lower)
+            pred_targets.append(pred_upper)
             
-            season = math.ceil((current_step+1)/params["season_len"])
-            
-            history_start_season = season - (params["history_len"]/params["season_len"])
-            if history_start_season < 1:
-                history_start_season = 1
-            
-            history_start = (history_start_season-1) * params["season_len"] 
-            
-            n = int(current_step - history_start)
-            print("n: ",n)
-            model = ExponentialSmoothing(cpu_usages[-n:], trend="add", seasonal="add",seasonal_periods=params["season_len"])
-            model_fit = model.fit()
-
-
-            x = model_fit.predict(start=n-params["window_past"],end=n+params["window_future"])
-            p = np.percentile(x, params["HW_percentile"])
-            if p < 0:
-                p = 0
-            pred_targets.append(p)
-            # pred_targets.append(model_fit.forecast())
             pred_x = range(len(pred_targets))
-            pred_x = [i * 15 for i in pred_x]
-
-            
-
-
-
-            # rescale
-            if set_best:
-                CPU_request = cpu_requested - params["rescale_buffer"]
+            # pred_x = [i * 15 for i in pred_x] TODO
     
-                if CPU_request - p > params["scale_down_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]:
-                    print("1")
-                    if np.max(pred_targets[-params["scale_down_stable"]:])-np.min(pred_targets[-params["scale_down_stable"]:]) < params["stable_range"]:
-                        print("2")
-                        #print("CPU request wasted")
-                        # Only rescale after best params have been set
-                        patch(client, p + params["rescale_buffer"], p + params["rescale_buffer"])
-                        rescale_counter += 1
-                        downscale = 0
-                        
-                elif p - CPU_request > params["scale_up_buffer"] and scaleup > params["scaleup_count"]  and downscale > params["scaledown_count"]: 
-                    print("3")
-                    if np.max(pred_targets[-params["scale_up_stable"]:])-np.min(pred_targets[-params["scale_up_stable"]:]) < params["stable_range"]:
-                        print("4")
-                        #print("CPU request too low")
-                        
-                        patch(client, p + params["rescale_buffer"], p + params["rescale_buffer"])
-                        rescale_counter += 1
-                        scaleup = 0
-            scaleup += 1
-            downscale += 1
+            # Scaling 
+            cpu_request_unbuffered = cpu_requested - params["rescale_buffer"]
+            # If no cool-down
+            if (cooldown == 0):
+                # If request change greater than 50
+                if (abs(cpu_requested - (pred_target + params["rescale_buffer"])) > 50):
+                    # If above upper
+                    if cpu_request_unbuffered > pred_upper:
+                        patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
+                        cooldown = params["rescale_cooldown"]
+                    # elseIf under lower
+                    elif cpu_request_unbuffered < pred_lower: 
+                        patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
+                        cooldown = params["rescale_cooldown"]
 
-            
+            # Reduce cooldown 
+            if cooldown > 0:
+                cooldown -= 1
+    
+
         else:
+            pred_targets.append(np.nan)
+            pred_lowers.append(np.nan)
             pred_targets.append(np.nan)
 
         
@@ -413,7 +502,7 @@ def main():
     # utility. If no argument provided, the config will be loaded from
     # default location.
     global api_client
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
     global plotVPA 
     global data
     global fig1, fig2, ax1, ax2
