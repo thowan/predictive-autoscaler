@@ -441,12 +441,12 @@ def update_main_plot():
 
     if current_step >= scaling_start_index: 
         # HW Prediction
-        pred_target, pred_lower, pred_upper = predict_HW(current_step)
+        # pred_target, pred_lower, pred_upper = predict_HW(current_step)
         # LSTM prediction
         # TODO model is created using all historical usages
-        # lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
-        # input_data = np.array(cpu_usages[-steps_in:])
-        # pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
+        lstm_model = create_lstm(steps_in, steps_out,n_features, np.array(cpu_usages), ywindow)
+        input_data = np.array(cpu_usages[-steps_in:])
+        pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
         
     
 
@@ -588,7 +588,7 @@ def main():
             fig1.savefig("./main.png",bbox_inches='tight')
             #fig2.savefig("./slack"+str(len(pred_targets))+".png", bbox_inches="tight")  TODO
             
-        sleeptime = 5.0 - ((time.time() - starttime) % 5.0)
+        sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
         
