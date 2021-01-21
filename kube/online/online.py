@@ -92,7 +92,8 @@ def create_sin_noise(A, D, per, total_len):
     B = 2*np.pi/per
     x = np.arange(total_len)
     series = A*np.sin(B*x)+D
-    #alpha = float(args.alpha)
+    alpha = 0.7
+    std = 300
     series = series * alpha
 
     noise = np.random.normal(0,int(std),len(series))*(1-alpha)
@@ -523,7 +524,7 @@ def main():
     # Fast initialize-------------------------------------------------------
     np.random.seed(13)
     series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
-    cpu_usages = series
+    cpu_usages = series.tolist()
     cpu_requests = [700]*len(cpu_requests)
     cpu_x = range(len(cpu_usages))
 
