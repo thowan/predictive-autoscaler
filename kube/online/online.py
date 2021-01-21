@@ -387,23 +387,11 @@ def update_main_plot():
     # print ("Hello")
     # return
     
-    # Get VPA metrics 
+    # VPA array update
     if plotVPA:
         vpa_target, lowerBound, upperBound = get_vpa_bounds(api_client)
-    # Get CPU metrics 
-    cpu_usage = get_cpu_usage(api_client)
-    cpu_requested = get_cpu_requests(client)
-    
-    
-    if cpu_usage is None:
-        print("cpu_usage is None")
-    if cpu_requested is None:
-        print("cpu_requested is None")
-
-    if cpu_usage is not None and cpu_requested is not None:
-
         # If getting VPA recommendations
-        if plotVPA and vpa_target is not None:
+        if vpa_target is not None:
 
             vpa_target, lowerBound, upperBound = get_vpa_bound_values(vpa_target, lowerBound, upperBound)
             
@@ -411,75 +399,89 @@ def update_main_plot():
             vpa_targets.append(vpa_target)
             vpa_lowers.append(lowerBound)
             vpa_uppers.append(upperBound)
-            vpa_x = range(len(vpa_targets))
+            
             # vpa_x = [i * 15 for i in vpa_x] #TODO
         else:
             vpa_targets.append(np.nan)
             vpa_lowers.append(np.nan)
             vpa_uppers.append(np.nan)
+        vpa_x = range(len(vpa_targets))
 
+    # CPU array update
+    cpu_usage = get_cpu_usage(api_client)
+    cpu_requested = get_cpu_requests(client)
+    
+    if cpu_usage is not None:
 
         # Update cpu arrays
         cpu_usage = get_cpu_usage_value(cpu_usage)
-        cpu_requested = get_cpu_requested_value(cpu_requested)
         # When rescaling, CPU usage falls to 0 as new pod starts up TODO need?
         # if cpu_usage <= 0 and len(cpu_usages) > 0:
         #     cpu_usage = cpu_usages[-1]
-
-        cpu_requests.append(cpu_requested)
         cpu_usages.append(cpu_usage)
-        cpu_x = range(len(cpu_usages))
         # cpu_x = [i * 15 for i in cpu_x] #TODO
+    else: 
+        print("cpu_usage is None")
+        cpu_usages.append(cpu_usage[-1])
 
+    if cpu_requested is not None:
 
-        # Prediction config
-        scaling_start_index = params["season_len"] * 2
-        current_step = len(cpu_usages)
+        cpu_requested = get_cpu_requested_value(cpu_requested)
+        cpu_requests.append(cpu_requested)
+    else: 
 
+        print("cpu_requested is None")
+        cpu_requests.append(cpu_requests[-1])
 
-        if current_step >= scaling_start_index: 
-            # HW Prediction
-            pred_target, pred_lower, pred_upper = predict_HW(current_step)
-            # LSTM prediction
-            # TODO model is created using all historical usages
-            # lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
-            # input_data = np.array(cpu_usages[-steps_in:])
-            # pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
-            
-           
+    cpu_x = range(len(cpu_usages))
 
-            pred_targets.append(pred_target)
-            pred_lowers.append(pred_lower)
-            pred_uppers.append(pred_upper)
-            
-    
-            # Scaling 
-            cpu_request_unbuffered = cpu_requested - params["rescale_buffer"]
-            # If no cool-down
-            if (cooldown == 0):
-                # If request change greater than 50
-                if (abs(cpu_requested - (pred_target + params["rescale_buffer"])) > 50):
-                    # If above upper
-                    if cpu_request_unbuffered > pred_upper:
-                        patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
-                        cooldown = params["rescale_cooldown"]
-                    # elseIf under lower
-                    elif cpu_request_unbuffered < pred_lower: 
-                        patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
-                        cooldown = params["rescale_cooldown"]
+    # Prediction 
+    scaling_start_index = params["season_len"] * 2
+    current_step = len(cpu_usages)
 
-            # Reduce cooldown 
-            if cooldown > 0:
-                cooldown -= 1
+    if current_step >= scaling_start_index: 
+        # HW Prediction
+        pred_target, pred_lower, pred_upper = predict_HW(current_step)
+        # LSTM prediction
+        # TODO model is created using all historical usages
+        # lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
+        # input_data = np.array(cpu_usages[-steps_in:])
+        # pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
+        
     
 
-        else:
-            pred_targets.append(np.nan)
-            pred_lowers.append(np.nan)
-            pred_targets.append(np.nan)
+        pred_targets.append(pred_target)
+        pred_lowers.append(pred_lower)
+        pred_uppers.append(pred_upper)
+        
 
-        pred_x = range(len(pred_targets))
-        # pred_x = [i * 15 for i in pred_x] TODO
+        # Scaling 
+        cpu_request_unbuffered = cpu_requested - params["rescale_buffer"]
+        # If no cool-down
+        if (cooldown == 0):
+            # If request change greater than 50
+            if (abs(cpu_requested - (pred_target + params["rescale_buffer"])) > 50):
+                # If above upper
+                if cpu_request_unbuffered > pred_upper:
+                    patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
+                    cooldown = params["rescale_cooldown"]
+                # elseIf under lower
+                elif cpu_request_unbuffered < pred_lower: 
+                    patch(client, pred_target + params["rescale_buffer"], pred_target + params["rescale_buffer"])
+                    cooldown = params["rescale_cooldown"]
+
+        # Reduce cooldown 
+        if cooldown > 0:
+            cooldown -= 1
+
+
+    else:
+        pred_targets.append(np.nan)
+        pred_lowers.append(np.nan)
+        pred_targets.append(np.nan)
+
+    pred_x = range(len(pred_targets))
+    # pred_x = [i * 15 for i in pred_x] TODO
         
         
         
@@ -530,7 +532,7 @@ def main():
     np.random.seed(13)
     series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
     cpu_usages = series.tolist()
-    cpu_requests = [700]*len(cpu_requests)
+    cpu_requests = [700]*len(cpu_usages)
     cpu_x = range(len(cpu_usages))
 
     
