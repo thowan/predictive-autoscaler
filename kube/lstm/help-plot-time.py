@@ -21,7 +21,7 @@ fig = plt.figure(1)
 ax1 = fig.add_subplot(1,1,1)
 fig.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
 t = "% usage above requested"
-fig.suptitle(t, fontsize=30)
+fig.suptitle(t, fontsize=23)
 
 fig.set_size_inches(15,8)
 
@@ -39,7 +39,10 @@ ax1.tick_params(axis="x", labelsize=20)
 ax1.tick_params(axis="y", labelsize=20) 
 
 
-ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=20)
+leg4 = ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+leg4_lines = leg4.get_lines()
+plt.setp(leg4_lines, linewidth=5)
+
 ax1.set_xlabel('Alpha', fontsize=20)
 ax1.set_ylabel('Observations (%)', fontsize=20)
 

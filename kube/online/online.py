@@ -366,8 +366,8 @@ def update_main_plot():
     global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
 
     # Testing ----------------------------------------
-    # print ("Hello")
-    # return
+    print ("Hello")
+    return
     
     # Get VPA metrics 
     if plotVPA:
@@ -427,7 +427,7 @@ def update_main_plot():
 
             pred_targets.append(pred_target)
             pred_lowers.append(pred_lower)
-            pred_targets.append(pred_upper)
+            pred_uppers.append(pred_upper)
             
             pred_x = range(len(pred_targets))
             # pred_x = [i * 15 for i in pred_x] TODO
