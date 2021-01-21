@@ -38,7 +38,7 @@ sns.set_theme()
 # K8s config TODO
 config.load_kube_config()
 api_client = client.ApiClient()
-api_client = None
+#api_client = None
 
 # Plots 
 fig1 = plt.figure(1)
@@ -89,7 +89,7 @@ def get_vpa_bounds(api_client):
     
     
     try:
-        ret_metrics = api_client.call_api('/apis/autoscaling.k8s.io/v1/namespaces/default/verticalpodautoscalers/my-rec-vpa', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
+        ret_metrics = api_client.call_api('/apis/autoscaling.k8s.io/v1/namespaces/ethowan/verticalpodautoscalers/my-rec-vpa', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
     
         response = ret_metrics[0].data.decode('utf-8')
         a = json.loads(response)
@@ -117,7 +117,7 @@ def patch(client, requests, limits):
 
     #HARDCODED deployment and container names
     dep = {"spec":{"template":{"spec":{"containers":[{"name":"nginx","resources":{"requests":{"cpu":str(int(requests))+"m"},"limits":{"cpu":str(int(limits))+"m"}}}]}}}}
-    resp = v1.patch_namespaced_deployment(name='nginx-deployment',  namespace='default', body=dep)
+    resp = v1.patch_namespaced_deployment(name='nginx-deployment',  namespace='ethowan', body=dep)
     print("PATCHED request, limits:", str(int(requests))+"m", str(int(limits))+"m")
 
 def get_running_pod(client, name, namespace):
@@ -140,11 +140,11 @@ def get_cpu_usage(api_client):
     # response = ret_metrics[0].data.decode('utf-8')
     # a = json.loads(response)
     # return(a["containers"][0]["usage"]["cpu"])
-    ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/default/pods', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
+    ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/ethowan/pods', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
     
     response = ret_metrics[0].data.decode('utf-8')
     a = json.loads(response)
-    pod_name = get_running_pod(client, "nginx-deployment", "default")
+    pod_name = get_running_pod(client, "nginx-deployment", "ethowan")
 
     for i in range(len(a["items"])):
         if pod_name in a["items"][i]["metadata"]["name"]:
@@ -171,12 +171,12 @@ def get_cpu_usage(api_client):
 def get_cpu_requests(client):
     try:
         api_instance = client.CoreV1Api()
-        pod_list = api_instance.list_namespaced_pod("default")
+        pod_list = api_instance.list_namespaced_pod("ethowan")
         for pod in pod_list.items:
             # HARDCODED deployment name
             if "nginx-deployment" in pod.metadata.name:
                 pod_name = pod.metadata.name
-        api_response = api_instance.read_namespaced_pod(name=pod_name, namespace='default')
+        api_response = api_instance.read_namespaced_pod(name=pod_name, namespace='ethowan')
 
         containers = api_response.spec.containers
         container_index = 0
@@ -429,8 +429,6 @@ def update_main_plot():
             pred_lowers.append(pred_lower)
             pred_uppers.append(pred_upper)
             
-            pred_x = range(len(pred_targets))
-            # pred_x = [i * 15 for i in pred_x] TODO
     
             # Scaling 
             cpu_request_unbuffered = cpu_requested - params["rescale_buffer"]
@@ -457,15 +455,11 @@ def update_main_plot():
             pred_lowers.append(np.nan)
             pred_targets.append(np.nan)
 
+        pred_x = range(len(pred_targets))
+        # pred_x = [i * 15 for i in pred_x] TODO
         
         
         
-        
-        
-
-
-
-
 # Plot the main graph, do not show
 # VPA target, CPU requests/usage, LSTM bounds
 
@@ -475,7 +469,8 @@ i = 0
 
 def plot_main():
     global fig1, ax1
-    
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+
     ax1.clear()
     
     # Testing --------------------------------------
@@ -545,7 +540,7 @@ def main():
             # Plot figure 
             plot_main()
             
-            fig1.savefig("./main"+str(len(pred_targets))+".png",bbox_inches='tight')
+            fig1.savefig("./main.png",bbox_inches='tight')
             #fig2.savefig("./slack"+str(len(pred_targets))+".png", bbox_inches="tight")  TODO
             
         sleeptime = 1.0 - ((time.time() - starttime) % 1.0)
