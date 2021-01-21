@@ -32,7 +32,7 @@ do
         
     done
     trap 'exit' INT
-    timeout -s SIGINT 1430 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
+    timeout -s SIGINT 840 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
 
     elapsedseconds=$SECONDS
     echo $elapsedseconds

@@ -132,7 +132,7 @@ def get_vpa_bounds(api_client):
 
 def patch(client, requests, limits):
     # Patch'
-    limits = requests
+    limits = 1000
     print(requests)
     v1 = client.AppsV1Api()
 
@@ -576,7 +576,7 @@ def main():
         if data == 'y' or len(pred_targets)%144 == 0:
             print("Saving fig")
             
-
+            print(cpu_usages)
             # Plot figure 
             plot_main()
             plot_slack()
