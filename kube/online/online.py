@@ -497,6 +497,7 @@ def plot_main():
     
     ax1.plot(vpa_x, vpa_targets, 'g--', linewidth=1,label='VPA target')
     ax1.plot(pred_x, pred_targets, 'r-', linewidth=2,label='Prediction target')
+    ax1.fill_between(pred_x, pred_lowers, pred_uppers, facecolor='blue', alpha=0.3, label="Prediction bounds")  
     ax1.plot(cpu_x, cpu_requests, 'b--', linewidth=2, label='CPU requested')
     ax1.plot(cpu_x, cpu_usages, 'y-', linewidth=1,label='CPU usage')
     ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
@@ -511,7 +512,7 @@ def main():
     # utility. If no argument provided, the config will be loaded from
     # default location.
     global api_client
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers, cooldown
     global plotVPA 
     global data
     global fig1, fig2, ax1, ax2
@@ -560,6 +561,7 @@ def main():
 # ---------------------------------------------------------------------
 
     patch(client, 700, 700) # TODO
+    cooldown = params["rescale_cooldown"]
 
     # ax1.set_xlim(left=params["season_len"]*2) TODO
     # ax2.set_xlim(left=params["season_len"]*2) TODO
