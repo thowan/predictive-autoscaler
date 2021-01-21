@@ -59,9 +59,9 @@ cpu_usages = []
 cpu_requests = []
 
 pred_x = []
-pred_targets = [np.nan]
-pred_lowers = [np.nan]
-pred_uppers = [np.nan]
+pred_targets = []
+pred_lowers = []
+pred_uppers = []
 
 cooldown = 0
 model = None
@@ -84,6 +84,38 @@ params = {
     "rescale_cooldown": 18, 
 }
 #-------------------------------------------------------------------
+
+# Fast initialize
+np.random.seed(13)
+series = create_sin_noise(A=300, D=200, per=params["season_len"], total_len=2*params["season_len"])
+cpu_usages = series
+cpu_requests = [700]*len(cpu_requests)
+cpu_x = range(len(cpu_usages))
+
+pred_targets = [np.nan]*len(cpu_requests)
+pred_lowers = [np.nan]*len(cpu_requests)
+pred_uppers = [np.nan]*len(cpu_requests)
+
+vpa_targets = [np.nan]*len(cpu_requests)
+vpa_lowers = [np.nan]*len(cpu_requests)
+vpa_uppers = [np.nan]*len(cpu_requests)
+
+
+def create_sin_noise(A, D, per, total_len):
+    # Sine wave
+    
+    B = 2*np.pi/per
+    x = np.arange(total_len)
+    series = A*np.sin(B*x)+D
+    #alpha = float(args.alpha)
+    series = series * alpha
+
+    noise = np.random.normal(0,int(std),len(series))*(1-alpha)
+    series = [sum(x) for x in zip(noise, series)]
+    series = [int(i) for i in series]
+
+    series = np.array([1 if i <= 0 else i for i in series]).flatten()
+    return series
 
 def get_vpa_bounds(api_client):
     
