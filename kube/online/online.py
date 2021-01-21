@@ -422,7 +422,7 @@ def update_main_plot():
         # cpu_x = [i * 15 for i in cpu_x] #TODO
     else: 
         print("cpu_usage is None")
-        cpu_usages.append(cpu_usage[-1])
+        cpu_usages.append(cpu_usages[-1])
 
     if cpu_requested is not None:
 
