@@ -182,7 +182,7 @@ def get_cpu_usage(api_client):
                 ret = a["items"][i]["containers"][container_index]["usage"]["cpu"]
             
             except IndexError:
-                time.sleep(1.0)
+                time.sleep(0.1)
                 return get_cpu_usage(api_client)
             return ret
 
@@ -393,9 +393,13 @@ def update_main_plot():
     # Get CPU metrics 
     cpu_usage = get_cpu_usage(api_client)
     cpu_requested = get_cpu_requests(client)
-    cpu_requested = get_cpu_requested_value(cpu_requested)
-    cpu_usage = get_cpu_usage_value(cpu_usage)
     
+    
+    if cpu_usage is None:
+        print("cpu_usage is None")
+    if cpu_requested is None:
+        print("cpu_requested is None")
+
     if cpu_usage is not None and cpu_requested is not None:
 
         # If getting VPA recommendations
@@ -416,7 +420,8 @@ def update_main_plot():
 
 
         # Update cpu arrays
-
+        cpu_usage = get_cpu_usage_value(cpu_usage)
+        cpu_requested = get_cpu_requested_value(cpu_requested)
         # When rescaling, CPU usage falls to 0 as new pod starts up TODO need?
         # if cpu_usage <= 0 and len(cpu_usages) > 0:
         #     cpu_usage = cpu_usages[-1]
