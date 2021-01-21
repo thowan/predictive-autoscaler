@@ -245,7 +245,7 @@ def update_slack_plot():
         ax2.plot(cpu_x[skip:], vpa_slack, 'yo-', linewidth=2, label='VPA slack')
 
 
-        fig2.suptitle('Slack', fontsize=25)
+        fig2.suptitle('Slack', fontsize=23)
 
         ax2.tick_params(axis="x", labelsize=20) 
         ax2.tick_params(axis="y", labelsize=20) 
@@ -366,8 +366,8 @@ def update_main_plot():
     global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
 
     # Testing ----------------------------------------
-    print ("Hello")
-    return
+    # print ("Hello")
+    # return
     
     # Get VPA metrics 
     if plotVPA:
@@ -419,9 +419,9 @@ def update_main_plot():
             pred_target, pred_lower, pred_upper = predict_HW(current_step)
             # LSTM prediction
             # TODO model is created using all historical usages
-            lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
-            input_data = np.array(cpu_usages[-steps_in:])
-            pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
+            # lstm_model = create_lstm(steps_in, steps_out,n_features, cpu_usages, ywindow)
+            # input_data = np.array(cpu_usages[-steps_in:])
+            # pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
             
            
 
@@ -479,17 +479,17 @@ def plot_main():
     ax1.clear()
     
     # Testing --------------------------------------
-    global a,b,i
-    a.append(i)
-    b.append(np.random.rand(1))
-    ax1.plot(a, b, 'g--', linewidth=1,label='VPA target')
-    i += 1
+    # global a,b,i
+    # a.append(i)
+    # b.append(np.random.rand(1))
+    # ax1.plot(a, b, 'g--', linewidth=1,label='VPA target')
+    # i += 1
     # Testing end ------------------------------------
     
-    # ax1.plot(vpa_x, vpa_targets, 'm--', linewidth=2, label='VPA target') 
-    # ax1.plot(pred_x, pred_targets, 'bo-', linewidth=2, label='Holt-winters')
-    # ax1.plot(cpu_x, cpu_requests, 'ro-', linewidth=2, label='Requested')
-    # ax1.plot(cpu_x, cpu_usages, 'go-', linewidth=2, label='CPU usage')
+    ax1.plot(vpa_x, vpa_targets, 'g--', linewidth=1,label='VPA target')
+    ax1.plot(pred_x, pred_targets, 'r-', linewidth=2,label='Prediction target')
+    ax1.plot(cpu_x, cpu_requests, 'b--', linewidth=2, label='CPU requested')
+    ax1.plot(cpu_x, cpu_usages, 'y-', linewidth=1,label='CPU usage')
     ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
     ax1.set_xlabel('Observation', fontsize=20)
     ax1.set_ylabel('CPU (millicores)', fontsize=20)
@@ -515,7 +515,7 @@ def main():
 
 #------------------------------------------
     # Set plot title, legend, labels
-    fig1.suptitle('nginx pod metrics', fontsize=25)
+    fig1.suptitle('nginx pod metrics', fontsize=23)
     fig1.subplots_adjust(left=0.1, bottom=0.2, right=None, top=None, wspace=None, hspace=None)
 
     # Main plot settings
