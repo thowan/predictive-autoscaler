@@ -447,7 +447,7 @@ def update_main_plot():
         if lstm_model is None: 
             lstm_model = create_lstm(steps_in, steps_out,n_features, np.array(cpu_usages), ywindow)
         else:
-            lstm_model = update_lstm(steps_in, steps_out, n_features,np.array(cpu_usages), ywindow, lstm_model)
+            lstm_model = update_lstm(steps_in, steps_out, n_features, np.array(cpu_usages[-144*4:]), ywindow, lstm_model)
         input_data = np.array(cpu_usages[-steps_in:])
         pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
         
