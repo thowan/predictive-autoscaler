@@ -382,7 +382,7 @@ def update_main_plot():
     global plotVPA 
     global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
     global lstm_model
-    print("cpu usage size:", len(cpu_usages))
+    #print("cpu usage size:", len(cpu_usages))
     # Testing ----------------------------------------
     # print ("Hello")
     # return
@@ -447,7 +447,7 @@ def update_main_plot():
         if lstm_model is None: 
             lstm_model = create_lstm(steps_in, steps_out,n_features, np.array(cpu_usages), ywindow)
         else:
-            lstm_model = update_lstm(steps_in, steps_out, n_features,n p.array(cpu_usages), ywindow, lstm_model)
+            lstm_model = update_lstm(steps_in, steps_out, n_features,np.array(cpu_usages), ywindow, lstm_model)
         input_data = np.array(cpu_usages[-steps_in:])
         pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
         
@@ -598,7 +598,8 @@ def main():
     starttime = time.time()
 
     while True:
-        
+        loopstart = time.time()
+
         update_main_plot()
         update_slack_plot() 
         
@@ -615,8 +616,10 @@ def main():
             fig1.savefig("./main"+str(len(pred_targets))+".png",bbox_inches='tight')
             fig2.savefig("./slack"+str(len(pred_targets))+".png",bbox_inches='tight')
         
-        print(time.time())
+        print("Loop time:", time.time()-loopstart)
+        
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
+        print("Sleep time:", sleeptime)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
         
