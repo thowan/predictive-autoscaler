@@ -151,8 +151,8 @@ def get_running_pod(client, name, namespace):
                 # print("Found: " + pod_name)
                 return pod_name
 
-    except ApiException as e:
-        print('Found exception in reading the logs', e)
+    except:
+        print("get_running_pod excepted")
 
 def get_cpu_usage(api_client):
     # ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/default/pods/nginx-deployment-67c998fb9b-gmxqz', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
@@ -185,9 +185,9 @@ def get_cpu_usage(api_client):
             try: 
                 ret = a["items"][i]["containers"][container_index]["usage"]["cpu"]
             
-            except IndexError as e:
-                print("IndexError:", e)
-                return ret
+            except:
+                print("get_cpu_usage excepted, return None")
+                return None
             return ret
 
 def get_cpu_requests(client):
@@ -210,8 +210,9 @@ def get_cpu_requests(client):
                 break
 
         return(api_response.spec.containers[container_index].resources.requests["cpu"])
-    except ApiException as e:
-        print('Found exception in reading the logs', e)
+    except:
+        print("get_cpu_requests excepted, return None")
+        return None
     
 def get_cpu_usage_value(cpu_usage):
     if cpu_usage.endswith('m'):
@@ -360,7 +361,7 @@ def update_main_plot():
     global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
     global plotVPA 
     global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
-
+    print("cpu usage size:", len(cpu_usages))
     # Testing ----------------------------------------
     # print ("Hello")
     # return
@@ -580,7 +581,9 @@ def main():
         if data == 'y' or len(pred_targets)%144 == 0:
             print("Saving fig")
             
+            
             print(cpu_usages)
+            print("cpu usage size:", len(cpu_usages))
             # Plot figure 
             plot_main()
             plot_slack()
