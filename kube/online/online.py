@@ -624,8 +624,8 @@ def main():
 
             with open("./output"+str(len(pred_targets))+".txt", "a") as f:
                 print("------cpu usage size:", len(cpu_usages), file=f)
-                print("cpu_slacks:", cpu_slacks, file=f)
-                print("vpa_slacks:", vpa_slacks, file=f)
+                print("cpu_slacks:", cpu_slacks.tolist(), file=f)
+                print("vpa_slacks:", vpa_slacks.tolist(), file=f)
                 print("cpu_usages:", cpu_usages, file=f)
         
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
