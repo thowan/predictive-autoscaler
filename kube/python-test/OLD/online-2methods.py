@@ -49,9 +49,6 @@ ax2 = fig2.add_subplot(1,1,1)
 # Record VPA or not
 plotVPA = True
 
-# Use LSTM or HW
-use_lstm = True
-
 vpa_x = []
 vpa_targets = []
 vpa_lowers = []
@@ -61,15 +58,21 @@ cpu_x = []
 cpu_usages = []
 cpu_requests = []
 
-pred_x = []
-pred_targets = []
-pred_lowers = []
-pred_uppers = []
+pred_x_lstm = []
+pred_targets_lstm = []
+pred_lowers_lstm = []
+pred_uppers_lstm = []
+
+pred_targets_hw = []
+pred_lowers_hw = []
+pred_uppers_hw = []
 
 cpu_slacks = []
 vpa_slacks = []
 
 cooldown = 0
+hw_cooldown = 0
+
 model = None
 hw_model = None
 lstm_model = None
@@ -86,7 +89,7 @@ params = {
     "HW_upper": 98, 
     "HW_lower": 60, 
     "season_len": 144, 
-    "history_len": 4*144, 
+    "history_len": 3*144, 
     "rescale_buffer": 120, 
     "rescale_cooldown": 18, 
 }
@@ -136,7 +139,7 @@ def get_vpa_bounds(api_client):
 def patch(client, requests, limits):
     # Patch'
     limits = 1000
-    print(requests)
+    #print(requests)
     v1 = client.AppsV1Api()
 
     #HARDCODED deployment and container names
@@ -381,9 +384,9 @@ def predict_HW(current_step):
 def update_main_plot():
 
     global api_client
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x_lstm, pred_targets_lstm, pred_lowers_lstm, pred_uppers_lstm, pred_targets_hw, pred_lowers_hw, pred_uppers_hw
     global plotVPA 
-    global params, cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
+    global params, cooldown, hw_cooldown, model, hw_model, steps_in, steps_out, n_features, ywindow
     global lstm_model
     #print("cpu usage size:", len(cpu_usages))
     # Testing ----------------------------------------
@@ -443,27 +446,30 @@ def update_main_plot():
     current_step = len(cpu_usages)
 
     if current_step >= scaling_start_index: 
+        # HW Prediction
+        pred_target_hw, pred_lower_hw, pred_upper_hw = predict_HW(current_step)
+        pred_targets_hw.append(pred_target_hw)
+        pred_lowers_hw.append(pred_lower_hw)
+        pred_uppers_hw.append(pred_upper_hw)
 
-        if use_lstm:
-            # LSTM prediction
-            # TODO model is created using all historical usages
-            if lstm_model is None: 
-                lstm_model = create_lstm(steps_in, steps_out,n_features, np.array(cpu_usages), ywindow)
-            else:
-                lstm_model = update_lstm(steps_in, steps_out, n_features, np.array(cpu_usages[-params["history_len"]:]), ywindow, lstm_model)
-            input_data = np.array(cpu_usages[-steps_in:])
-            pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
+        # LSTM prediction
+        # TODO model is created using all historical usages
+        if lstm_model is None: 
+            lstm_model = create_lstm(steps_in, steps_out,n_features, np.array(cpu_usages), ywindow)
         else:
-            # HW Prediction
-            pred_target, pred_lower, pred_upper = predict_HW(current_step)
-
+            lstm_model = update_lstm(steps_in, steps_out, n_features, np.array(cpu_usages[-144*4:]), ywindow, lstm_model)
+        input_data = np.array(cpu_usages[-steps_in:])
+        pred_target, pred_lower, pred_upper = predict_lstm(input_data, lstm_model,steps_in, n_features)
         
-        pred_targets.append(pred_target)
-        pred_lowers.append(pred_lower)
-        pred_uppers.append(pred_upper)
+        pred_targets_lstm.append(pred_target)
+        pred_lowers_lstm.append(pred_lower)
+        pred_uppers_lstm.append(pred_upper)
         
 
-        # Scaling 
+        # Scaling HW
+        
+
+        # Scaling LSTM
         cpu_request_unbuffered = cpu_requested - params["rescale_buffer"]
         # If no cool-down
         if (cooldown == 0):
@@ -484,15 +490,15 @@ def update_main_plot():
 
 
     else:
-        pred_targets.append(np.nan)
-        pred_lowers.append(np.nan)
-        pred_uppers.append(np.nan)
+        pred_targets_lstm.append(np.nan)
+        pred_lowers_lstm.append(np.nan)
+        pred_uppers_lstm.append(np.nan)
 
-    pred_x = range(len(pred_targets))
-    # pred_x = [i * 15 for i in pred_x] TODO
+    pred_x_lstm = range(len(pred_targets_lstm))
+    # pred_x_lstm = [i * 15 for i in pred_x_lstm] TODO
      
 def update_slack_plot():
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x_lstm, pred_targets_lstm, pred_lowers_lstm, pred_uppers_lstm, pred_targets_hw, pred_lowers_hw, pred_uppers_hw
     global params
     global cpu_slacks, vpa_slacks
     
@@ -522,13 +528,13 @@ def plot_slack():
 # VPA target, CPU requests/usage, LSTM bounds
 def plot_main():
     global fig1, ax1
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x_lstm, pred_targets_lstm, pred_lowers_lstm, pred_uppers_lstm, pred_targets_hw, pred_lowers_hw, pred_uppers_hw
 
     ax1.clear()
     
     ax1.plot(vpa_x, vpa_targets, 'g--', linewidth=1,label='VPA target')
-    ax1.plot(pred_x, pred_targets, 'r-', linewidth=2,label='Prediction target')
-    ax1.fill_between(pred_x, pred_lowers, pred_uppers, facecolor='red', alpha=0.3, label="Prediction bounds")  
+    ax1.plot(pred_x_lstm, pred_targets_lstm, 'r-', linewidth=2,label='Prediction target')
+    ax1.fill_between(pred_x_lstm, pred_lowers_lstm, pred_uppers_lstm, facecolor='red', alpha=0.3, label="Prediction bounds")  
     ax1.plot(cpu_x, cpu_requests, 'b--', linewidth=2, label='CPU requested')
     ax1.plot(cpu_x, cpu_usages, 'y-', linewidth=1,label='CPU usage')
     ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
@@ -543,7 +549,7 @@ def main():
     # utility. If no argument provided, the config will be loaded from
     # default location.
     global api_client
-    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x, pred_targets, pred_lowers, pred_uppers, cooldown
+    global vpa_x, vpa_targets, cpu_x, cpu_usages, vpa_lowers, vpa_uppers, cpu_requests, pred_x_lstm, pred_targets_lstm, pred_lowers_lstm, pred_uppers_lstm, pred_targets_hw, pred_lowers_hw, pred_uppers_hw, cooldown
     global plotVPA 
     global data
     global fig1, fig2, ax1, ax2
@@ -561,10 +567,10 @@ def main():
     cpu_requests = [700]*len(cpu_usages)
     cpu_x = range(len(cpu_usages))
 
-    pred_targets = [np.nan]*len(cpu_usages)
-    pred_lowers = [np.nan]*len(cpu_usages)
-    pred_uppers = [np.nan]*len(cpu_usages)
-    pred_x = range(len(cpu_usages))
+    pred_targets_lstm = [np.nan]*len(cpu_usages)
+    pred_lowers_lstm = [np.nan]*len(cpu_usages)
+    pred_uppers_lstm = [np.nan]*len(cpu_usages)
+    pred_x_lstm = range(len(cpu_usages))
     
     vpa_targets = [np.nan]*len(cpu_usages)
     vpa_lowers = [np.nan]*len(cpu_usages)
@@ -610,25 +616,22 @@ def main():
         update_main_plot()
         update_slack_plot() 
         
-        if data == 'y' or len(pred_targets)%144 == 0:
-            print("Saving fig", len(pred_targets))
-
+        if data == 'y' or len(pred_targets_lstm)%144 == 0:
+            print("Saving fig")
+            
+            
+            print(cpu_usages)
             print("--------------------cpu usage size:", len(cpu_usages))
             # Plot figure 
             plot_main()
             plot_slack()
             
-            fig1.savefig("./main"+str(len(pred_targets))+".png",bbox_inches='tight')
-            fig2.savefig("./slack"+str(len(pred_targets))+".png",bbox_inches='tight')
-
-            with open("output.txt", "a") as f:
-                print("------cpu usage size:", len(cpu_usages))
-                print("cpu_slacks:", cpu_slacks, file=f)
-                print("vpa_slacks:", vpa_slacks, file=f)
-                print("cpu_usages:", cpu_usages, file=f)
+            fig1.savefig("./main"+str(len(pred_targets_lstm))+".png",bbox_inches='tight')
+            fig2.savefig("./slack"+str(len(pred_targets_lstm))+".png",bbox_inches='tight')
+        
+        print("Loop time:", time.time()-loopstart)
         
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
-        print("Loop time:", time.time()-loopstart)
         print("Sleep time:", sleeptime)
         # sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         time.sleep(sleeptime)
