@@ -11,12 +11,12 @@ do
         let "it = $counter * 7"
         echo $it
         echo Put load $it load 60s
-        timeout --foreground -s SIGINT 60 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
+        timeout -s SIGINT 60 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
         # sleep 1
         ((counter++))
         
     done
-    timeout --foreground -s SIGINT 120 go run main.go -qps 70 -concurrency 100 http://10.129.9.3:32062
+    timeout -s SIGINT 120 go run main.go -qps 70 -concurrency 100 http://10.129.9.3:32062
 
     trap 'exit' INT
 
@@ -26,13 +26,13 @@ do
         let "it = $counter * 7"
         echo $it
         echo Put load $it load 60s
-        timeout --foreground -s SIGINT 60 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
+        timeout -s SIGINT 60 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
         # sleep 1
         ((counter--))
         
     done
     trap 'exit' INT
-    timeout --foreground -s SIGINT 840 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
+    timeout -s SIGINT 840 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
 
     elapsedseconds=$SECONDS
     echo $elapsedseconds
