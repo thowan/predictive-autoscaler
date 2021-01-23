@@ -50,7 +50,7 @@ ax2 = fig2.add_subplot(1,1,1)
 plotVPA = True
 
 # Use LSTM or HW
-use_lstm = False
+use_lstm = True
 print("use_lstm:", use_lstm)
 
 vpa_x = []
