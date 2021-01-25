@@ -40,16 +40,6 @@ config.load_kube_config()
 api_client = client.ApiClient()
 #api_client = None
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument("-d", "--dep_name", help="Deployment name", default="nginx-deployment")
-parser.add_argument("-c", "--cont_name", help="Container name", default="nginx")
-parser.add_argument("-v", "--vpa_name", help="VPA name", default="my-rec-vpa")
-
-
-
-args = parser.parse_args()
-
 # Plots 
 fig1 = plt.figure(1)
 fig2 = plt.figure(2)
@@ -124,7 +114,7 @@ def get_vpa_bounds(api_client):
     
     
     try:
-        ret_metrics = api_client.call_api('/apis/autoscaling.k8s.io/v1/namespaces/ethowan/verticalpodautoscalers/' + args.vpa_name, 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
+        ret_metrics = api_client.call_api('/apis/autoscaling.k8s.io/v1/namespaces/ethowan/verticalpodautoscalers/my-rec-vpa', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
     
         response = ret_metrics[0].data.decode('utf-8')
         a = json.loads(response)
@@ -132,7 +122,7 @@ def get_vpa_bounds(api_client):
         container_index = 0
         
         for c in range(len(containers)):
-            if args.cont_name in containers[c]["containerName"]:
+            if "nginx" in containers[c]["containerName"]:
                 container_index = c
                 break
 
@@ -150,9 +140,9 @@ def patch(client, requests, limits):
     print(requests)
     v1 = client.AppsV1Api()
 
-
-    dep = {"spec":{"template":{"spec":{"containers":[{"name":args.cont_name,"resources":{"requests":{"cpu":str(int(requests))+"m"},"limits":{"cpu":str(int(limits))+"m"}}}]}}}}
-    resp = v1.patch_namespaced_deployment(name=args.dep_name,  namespace='ethowan', body=dep)
+    #HARDCODED deployment and container names
+    dep = {"spec":{"template":{"spec":{"containers":[{"name":"nginx","resources":{"requests":{"cpu":str(int(requests))+"m"},"limits":{"cpu":str(int(limits))+"m"}}}]}}}}
+    resp = v1.patch_namespaced_deployment(name='nginx-deployment',  namespace='ethowan', body=dep)
     print("PATCHED request, limits:", str(int(requests))+"m", str(int(limits))+"m")
 
 def get_running_pod(client, name, namespace):
@@ -160,7 +150,7 @@ def get_running_pod(client, name, namespace):
         api_instance = client.CoreV1Api()
         pod_list = api_instance.list_namespaced_pod(namespace)
         for pod in pod_list.items:
-            
+            # HARDCODED deployment name
             if name in pod.metadata.name and 'Running' in pod.status.phase:
                 pod_name = pod.metadata.name
                 # print("Found: " + pod_name)
@@ -170,12 +160,16 @@ def get_running_pod(client, name, namespace):
         print("get_running_pod excepted")
 
 def get_cpu_usage(api_client):
-
+    # ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/default/pods/nginx-deployment-67c998fb9b-gmxqz', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
+    
+    # response = ret_metrics[0].data.decode('utf-8')
+    # a = json.loads(response)
+    # return(a["containers"][0]["usage"]["cpu"])
     ret_metrics = api_client.call_api('/apis/metrics.k8s.io/v1beta1/namespaces/ethowan/pods', 'GET', auth_settings = ['BearerToken'], response_type='json', _preload_content=False) 
     
     response = ret_metrics[0].data.decode('utf-8')
     a = json.loads(response)
-    pod_name = get_running_pod(client, args.dep_name, "ethowan")
+    pod_name = get_running_pod(client, "nginx-deployment", "ethowan")
 
     ret = None
 
@@ -188,7 +182,7 @@ def get_cpu_usage(api_client):
             
             for c in range(len(containers)):
                 
-                if args.cont_name in containers[c]["name"]:
+                if "nginx" in containers[c]["name"]:
                     container_index = c
                     break
             
@@ -206,8 +200,8 @@ def get_cpu_requests(client):
         api_instance = client.CoreV1Api()
         pod_list = api_instance.list_namespaced_pod("ethowan")
         for pod in pod_list.items:
-            
-            if args.dep_name in pod.metadata.name:
+            # HARDCODED deployment name
+            if "nginx-deployment" in pod.metadata.name:
                 pod_name = pod.metadata.name
         api_response = api_instance.read_namespaced_pod(name=pod_name, namespace='ethowan')
 
@@ -216,7 +210,7 @@ def get_cpu_requests(client):
         
         for c in range(len(containers)):
             
-            if args.cont_name in containers[c].name:
+            if "nginx" in containers[c].name:
                 container_index = c
                 break
 
