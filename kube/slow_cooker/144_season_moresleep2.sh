@@ -2,6 +2,7 @@
 
 dou=1
 
+timeout -s SIGINT 1080 go run main.go -qps $it -concurrency 100 http://10.129.9.3:32062
 while [ $dou -le 10 ]
 SECONDS=0
 do
