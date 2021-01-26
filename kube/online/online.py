@@ -628,7 +628,7 @@ def main():
             fig1.savefig("./main"+ args.dep_name +str(len(pred_targets))+".png",bbox_inches='tight')
             fig2.savefig("./slack"+ args.dep_name +str(len(pred_targets))+".png",bbox_inches='tight')
 
-            with open("./output"+str(len(pred_targets))+".txt", "a") as f:
+            with open("./output"+ args.dep_name+str(len(pred_targets))+".txt", "a") as f:
                 print("------cpu usage size:", len(cpu_usages), file=f)
                 print("cpu_slacks:", cpu_slacks.tolist(), file=f)
                 print("----------------------------------", file=f)
