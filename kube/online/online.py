@@ -625,14 +625,21 @@ def main():
             plot_main()
             plot_slack()
             
-            fig1.savefig("./main"+str(len(pred_targets))+".png",bbox_inches='tight')
-            fig2.savefig("./slack"+str(len(pred_targets))+".png",bbox_inches='tight')
+            fig1.savefig("./main"+ args.dep_name +str(len(pred_targets))+".png",bbox_inches='tight')
+            fig2.savefig("./slack"+ args.dep_name +str(len(pred_targets))+".png",bbox_inches='tight')
 
             with open("./output"+str(len(pred_targets))+".txt", "a") as f:
                 print("------cpu usage size:", len(cpu_usages), file=f)
                 print("cpu_slacks:", cpu_slacks.tolist(), file=f)
+                print("----------------------------------", file=f)
                 print("vpa_slacks:", vpa_slacks.tolist(), file=f)
+                print("----------------------------------", file=f)
                 print("cpu_usages:", cpu_usages, file=f)
+                print("----------------------------------", file=f)
+                print("cpu_requests:", cpu_requests, file=f)
+                print("----------------------------------", file=f)
+
+
         
         sleeptime = 15.0 - ((time.time() - starttime) % 15.0)
         print("Loop time:", time.time()-loopstart)
