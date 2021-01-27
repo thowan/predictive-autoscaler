@@ -151,7 +151,7 @@ def main():
     # Configs can be set in Configuration class directly or using helper
     # utility. If no argument provided, the config will be loaded from
     # default location.
-    global api_client
+
     global vpa_x, vpa_targets, cpu_x, cpu_usages, cpu_requests, cpu_x2, cpu_usages2, cpu_requests2, pred_x, pred_targets, pred_lowers, pred_uppers, cpu_requests_total, cpu_usages_total
     global plotVPA 
     global fig1, fig2, ax1, ax2
