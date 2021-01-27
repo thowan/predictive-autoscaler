@@ -521,7 +521,10 @@ def plot_slack():
     #print(cpu_slacks)
     ax2.plot(cpu_x[skip:], cpu_slacks, 'b--', linewidth=2, label='CPU slack')
     ax2.plot(cpu_x[skip:], vpa_slacks, 'g-', linewidth=2, label='VPA slack')
-    ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg2 = ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg2_lines = leg2.get_lines()
+    plt.setp(leg2_lines, linewidth=5)
+    
     ax2.set_xlabel('Time (s)', fontsize=20)
     ax2.set_ylabel('CPU (millicores)', fontsize=20)
    
@@ -540,7 +543,10 @@ def plot_main():
     ax1.fill_between(pred_x, pred_lowers, pred_uppers, facecolor='red', alpha=0.3, label="Prediction bounds")  
     ax1.plot(cpu_x, cpu_requests, 'b--', linewidth=2, label='CPU requested')
     ax1.plot(cpu_x, cpu_usages, 'y-', linewidth=1,label='CPU usage')
-    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg1 = ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.30), fancybox=True, shadow=True, ncol=6, fontsize=15)
+    leg1_lines = leg1.get_lines()
+    plt.setp(leg1_lines, linewidth=5)
+
     ax1.set_xlabel('Observation', fontsize=20)
     ax1.set_ylabel('CPU (millicores)', fontsize=20)
     
@@ -630,13 +636,15 @@ def main():
 
             with open("./output"+ args.dep_name+str(len(pred_targets))+".txt", "a") as f:
                 print("------cpu usage size:", len(cpu_usages), file=f)
-                print("cpu_slacks:", cpu_slacks.tolist(), file=f)
+                print("cpu_slacks =", cpu_slacks.tolist(), file=f)
                 print("----------------------------------", file=f)
-                print("vpa_slacks:", vpa_slacks.tolist(), file=f)
+                print("vpa_slacks =", vpa_slacks.tolist(), file=f)
                 print("----------------------------------", file=f)
-                print("cpu_usages:", cpu_usages, file=f)
+                print("cpu_usages =", cpu_usages, file=f)
                 print("----------------------------------", file=f)
-                print("cpu_requests:", cpu_requests, file=f)
+                print("cpu_requests =", cpu_requests, file=f)
+                print("----------------------------------", file=f)
+                print("vpa_targets =", vpa_targets, file=f)
                 print("----------------------------------", file=f)
 
 
