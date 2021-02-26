@@ -1,0 +1,1 @@
+steps_in, steps_out, n_features, ywindow = 48, 3, 1, 24

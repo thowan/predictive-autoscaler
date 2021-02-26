@@ -1,0 +1,22 @@
+ steps_in, steps_out, n_features, ywindow = 144, 3, 1, 24
+
+series_train = np.array([])
+    for i in range(20):
+        
+        s1 = create_sin_noise(A=400, D=200, per=params["season_len"], total_len=1*params["season_len"]) 
+        s2 = create_sin_noise(A=50, D=200, per=params["season_len"], total_len=1*params["season_len"])
+        if random.random() < 0.5:
+            series_train = np.concatenate((series_train, s1))
+        else:
+            series_train = np.concatenate((series_train, s2))
+    
+    series = np.array([])
+    np.random.seed(14)
+    for i in range(8):
+        
+        s1 = create_sin_noise(A=400, D=200, per=params["season_len"], total_len=1*params["season_len"]) 
+        s2 = create_sin_noise(A=50, D=200, per=params["season_len"], total_len=1*params["season_len"])
+        if np.random.rand() < 0.5:
+            series = np.concatenate((series, s1))
+        else:
+            series = np.concatenate((series, s2))
